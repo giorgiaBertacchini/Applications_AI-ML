@@ -1,0 +1,25 @@
+job_arrival_lambda: 0.65
+
+dd:
+  min: 30
+  max: 50
+
+families:
+  f1:
+    weight: 0.1
+    routing: [ 1, 1, 0, 1, 1, 1 ]
+    processing:
+      alpha: 2
+      beta: 2
+  f2:
+    weight: 0.52
+    routing: [ 0.8, 0.8, 1, 0.8, 0.8, 0.75 ]
+    processing:
+      alpha: 4
+      beta: 0.5
+  f3:
+    weight: 0.38
+    routing: [ 0, 0, 1, 0, 0, 0.75 ]
+    processing:
+      alpha: 6
+      beta: 1/6
