@@ -1,0 +1,8 @@
+welch:
+  until: 9600
+  window_size: 30
+  tol: 0.01
+
+analyze_throughput:
+  until: 9600
+  alpha: 0.05

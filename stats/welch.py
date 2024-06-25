@@ -1,12 +1,5 @@
-from collections.abc import Sequence
-
-from scipy import stats
-
 import numpy as np
-import statistics
 from matplotlib import pyplot as plt
-
-from simulation.sim_system import SimSystem
 
 
 class Welch:
@@ -51,17 +44,3 @@ class Welch:
         plt.axvline(self.warmup_period, color='r', linestyle='--', label=f'Warmup period: {self.warmup_period}')
         plt.legend(loc='best')
         plt.show()
-
-
-def t_student_critical_value(alpha: float, n: int) -> float:
-    return stats.t.ppf(1 - alpha, n - 1)
-
-
-def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:
-    n = len(runs)
-    sample = [statistics.mean(run.th_stats[warmup_period:]) for run in runs]
-    throughput_sample_mean = statistics.mean(sample)
-    throughput_sample_variance = statistics.variance(sample, xbar=throughput_sample_mean)
-    t = t_student_critical_value(alpha=alpha, n=n)
-    half_interval = t * np.sqrt(throughput_sample_variance / n)
-    return throughput_sample_mean, throughput_sample_variance, half_interval

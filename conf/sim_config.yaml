@@ -23,3 +23,17 @@ families:
     processing:
       alpha: 6
       beta: 1/6
+
+
+throughput_sampling: True
+throughput_timestep: 60  # da valutare
+
+wip_sampling: False
+wip_timestep: 60  # da valutare
+
+mean_time_in_system_sampling: True
+mean_time_in_system_timestep: 60  # da valutare
+
+delivery_window: 2  # da valutare
+
+daily_penalty: 10  # da valutare

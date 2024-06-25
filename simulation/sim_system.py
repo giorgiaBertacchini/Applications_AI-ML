@@ -1,12 +1,12 @@
 import simpy
 import yaml
+import statistics
 
 from typing import List  # TODO va bene?
-from collections.abc import Sequence, Callable
+from collections.abc import Callable
 
 from simulation.machine import Machine
 from simulation.job import Job
-
 
 with open('../conf/sim_config.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -21,7 +21,7 @@ class SimSystem:
             f1_processing_time_distribution: Callable[[], float],
             f2_processing_time_distribution: Callable[[], float],
             f3_processing_time_distribution: Callable[[], float],
-            routing: Callable[[], List[float]],  # TODO valori random tra 0 e 1, sono 6 valori
+            routing: Callable[[], List[float]],
             dd: Callable[[], float]
     ):
         self.env = env
@@ -40,22 +40,50 @@ class SimSystem:
             self.machines.append(Machine(
                 env=self.env,
                 capacity=1
-            ))  # TODO: passare i parametri giusti
+            ))
 
         # Statistics: throughput
         self.th_stats: list[int] = [0]
-        self.tot_finished_jobs: int = 0  # TODO da incrementare ogni volta che un job termina
+        self.tot_finished_jobs: int = 0
         self.last_total_th = 0
 
+        # Statistics: wip
+        self.wip_stats: list[tuple[int]] = [(0, 0, 0, 0, 0, 0)]
+
+        # Statistics: mean time in system
+        self.mts_stats: list[float] = []
+
         self.env.process(self.run())
-        self.env.process(self.throughput_sampler())
+
+        if config['throughput_sampling']:
+            self.env.process(self.throughput_sampler())
+
+        if config['wip_sampling']:
+            self.env.process(self.wip_sampler())
+
+        if config['mean_time_in_system_sampling']:
+            self.env.process(self.mean_time_in_system_sampler())
+
+    def wip_sampler(self):
+        while True:
+            yield self.env.timeout(float(config['wip_timestep']))
+            wip = tuple(machine.queue_length() for machine in self.machines)
+            self.wip_stats.append(wip)
 
     def throughput_sampler(self):
         while True:
-            yield self.env.timeout(60)  # TODO: passare il tempo giusto
+            yield self.env.timeout(float(config['throughput_timestep']))
             delta = self.tot_finished_jobs - self.last_total_th
             self.th_stats.append(delta)
             self.last_total_th = self.tot_finished_jobs
+
+    def mean_time_in_system_sampler(self):
+        while True:
+            yield self.env.timeout(float(config['mean_time_in_system_timestep']))
+
+            mean_mts = statistics.mean(
+                sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)
+            self.mts_stats.append(mean_mts)
 
     def run(self):
         while True:
@@ -88,12 +116,13 @@ class SimSystem:
                 routing=new_routing,
                 processing_times=processing_time_list,
                 machines=[server for in_routing, server in zip(new_routing, self.machines) if in_routing],
-                dd=self.dd()
+                dd=self.dd() + self.env.now
             )
 
-            self.jobs.append(job)
-            self.env.process(job.main())
-            self.env.process(self.job_finished(end_event))
+            self.job_manager(end_event, job)
+
+    def job_manager(self, end_event, job):
+        pass
 
     def job_finished(self, end_event):
         yield end_event
