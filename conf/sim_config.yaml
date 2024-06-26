@@ -28,10 +28,10 @@ families:
 throughput_sampling: True
 throughput_timestep: 60  # da valutare
 
-wip_sampling: False
+wip_sampling: True
 wip_timestep: 60  # da valutare
 
-mean_time_in_system_sampling: True
+mean_time_in_system_sampling: False
 mean_time_in_system_timestep: 60  # da valutare
 
 delivery_window: 2  # da valutare

@@ -33,7 +33,7 @@ class Job:
         self.logger = Logger(self.env)
         self.name = f'Job {id(self)}'
 
-        self.logger.log(f'{self} enters in system...')
+        #self.logger.log(f'{self} enters in system...')
 
     def __str__(self):
         return f"{self.name}\033[0m"
@@ -63,5 +63,5 @@ class Job:
 
                 self.real_routing.append((machine, processing_time))
 
-        self.logger.log(f'{self} completed!')
+        #self.logger.log(f'{self} completed!')
         self.end_event.succeed()

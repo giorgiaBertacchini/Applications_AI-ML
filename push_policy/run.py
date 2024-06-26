@@ -9,6 +9,7 @@ from typing import Sequence
 from push_policy.push_system import PushSystem
 from stats.welch import Welch
 from stats.analysis import analyze_throughput, analyze_wip
+from stats.analysis_view import wip_table, wip_plt
 
 N = 20
 M = N + 100
@@ -63,6 +64,7 @@ def main_push_system(*seeds: int, until) -> Sequence[PushSystem]:
 
 
 def run_and_statistics(*seeds: int) -> None:
+    print(f"Running {len(seeds)} simulations...")
 
     # Run first simulations to find the warmup period
     system_runs = main_push_system(*seeds[:N], until=welch_params['welch']['until'])
@@ -73,46 +75,37 @@ def run_and_statistics(*seeds: int) -> None:
     welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
     welch.plot()
 
-    # Analyze Throughput
     system_runs = main_push_system(*seeds[N:M], until=welch_params['analyze_throughput']['until'])  # TODO 60 * 160
 
-    alpha = welch_params['analyze_throughput']['alpha']
-    throughput_sample_mean, throughput_sample_variance, half_interval = (
-        analyze_throughput(system_runs,
-                           warmup_period=welch.warmup_period,
-                           alpha=alpha)
-    )
-    print(f"\nThroughput Sample Mean: {throughput_sample_mean:.2f}")
-    print(f"Throughput Sample Variance: {throughput_sample_variance:.2f}")
-    print(f"Half Interval: {half_interval:.2f}")
-    print(
-        f"Confidence Interval [{alpha=}]: ({throughput_sample_mean - half_interval:.2f}, {throughput_sample_mean + half_interval:.2f})")
-    print(f"Relative Error: {100 * half_interval / throughput_sample_mean:.2f}%")
+    if config['throughput_sampling']:
+        # Analyze Throughput
+        alpha = welch_params['analyze_throughput']['alpha']
 
-    # Analyze WIP
-    wip_sample_mean, wip_sample_variance, wip_half_interval = (
-        analyze_wip(
-            system_runs,
-            warmup_period=welch.warmup_period,
-            alpha=alpha)
-    )
-    print(f"\nWIP Sample Mean:")
-    for i, mean in enumerate(wip_sample_mean):
-        print(f"Machine {i + 1}: {mean:.2f}")
-    print(f"WIP Sample Variance:")
-    for i, var in enumerate(wip_sample_variance):
-        print(f"Machine {i + 1}: {var:.2f}")
-    print(f"Half Interval:")
-    for i, hi in enumerate(wip_half_interval):
-        print(f"Machine {i + 1}: {hi:.2f}")
-    print(f"Confidence Interval [{alpha=}]:")
-    for i, (mean, interval) in enumerate(zip(wip_sample_mean, wip_half_interval)):
-        print(f"Machine {i + 1}: ({mean - interval:.2f}, {mean + interval:.2f})")
-    print(f"Relative Error: {100 * wip_half_interval[0] / wip_sample_mean[0]:.2f}%")
-    print(f"Relative Error: {100 * wip_half_interval[1] / wip_sample_mean[1]:.2f}%")
-    print(f"Relative Error: {100 * wip_half_interval[2] / wip_sample_mean[2]:.2f}%")
-    print(f"Relative Error: {100 * wip_half_interval[3] / wip_sample_mean[3]:.2f}%")
-    print(f"Relative Error: {100 * wip_half_interval[4] / wip_sample_mean[4]:.2f}%")
-    print(f"Relative Error: {100 * wip_half_interval[5] / wip_sample_mean[5]:.2f}%")
+        throughput_sample_mean, throughput_sample_variance, half_interval = (
+            analyze_throughput(system_runs,
+                               warmup_period=welch.warmup_period,
+                               alpha=alpha)
+        )
+        print(f"\nThroughput Sample Mean: {throughput_sample_mean:.2f}")
+        print(f"Throughput Sample Variance: {throughput_sample_variance:.2f}")
+        print(f"Half Interval: {half_interval:.2f}")
+        print(
+            f"Confidence Interval [{alpha=}]: ({throughput_sample_mean - half_interval:.2f}, {throughput_sample_mean + half_interval:.2f})")
+        print(f"Relative Error: {100 * half_interval / throughput_sample_mean:.2f}%")
+
+    if config['wip_sampling']:
+        # Analyze WIP
+        alpha = welch_params['analyze_wip']['alpha']
+
+        wip_sample_mean, wip_sample_variance, wip_half_interval = (
+            analyze_wip(
+                system_runs,
+                warmup_period=welch.warmup_period,
+                alpha=alpha)
+        )
+
+        wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval)
+        wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha)
+
 
 run_and_statistics(*seeds)

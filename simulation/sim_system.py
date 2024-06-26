@@ -67,7 +67,7 @@ class SimSystem:
     def wip_sampler(self):
         while True:
             yield self.env.timeout(float(config['wip_timestep']))
-            wip = tuple(machine.queue_length() for machine in self.machines)
+            wip = tuple(machine.queue_length for machine in self.machines)
             self.wip_stats.append(wip)
 
     def throughput_sampler(self):
@@ -82,7 +82,7 @@ class SimSystem:
             yield self.env.timeout(float(config['mean_time_in_system_timestep']))
 
             mean_mts = statistics.mean(
-                sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)
+                sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)  # TODO si può migliorare
             self.mts_stats.append(mean_mts)
 
     def run(self):

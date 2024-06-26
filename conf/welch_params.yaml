@@ -1,8 +1,11 @@
 welch:
-  until: 9600
+  until: 5000  # 9600
   window_size: 30
-  tol: 0.01
+  tol: 0.1  # 0.01
 
 analyze_throughput:
-  until: 9600
+  until: 5000  # 9600
+  alpha: 0.05
+
+analyze_wip:
   alpha: 0.05

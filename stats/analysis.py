@@ -26,14 +26,21 @@ def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.
         tuple)[list[float], list[float], list[float]]:
     n = len(runs)  # TODO non sarebbero - warmup_period ?
 
-    # Estrai tutte le tuple wip_stats da ogni simulazione
-    all_stats = [stat for run in runs for stat in run.wip_stats[warmup_period:]]
+    # Inizializza un dizionario con chiavi da 0 a 5, ciascuna con una lista vuota come valore
+    sample = {i: [] for i in range(6)}
 
-    # Trasponi la lista di tuple per separare i valori per indice
-    transposed = list(zip(*all_stats))
+    # Itera su ogni run di simulazione
+    for run in runs:
+        # Prende i dati della simulazione ignorando il periodo di warmup e li trasposta
+        transposed = list(zip(*run.wip_stats[warmup_period:]))  # lista di 6 elementi
 
-    wip_sample_mean = [np.mean(values) for values in transposed]
-    wip_sample_variance = [statistics.variance(values, xbar=wip_sample_mean) for values in transposed]  # TODO to fix
+        # Per ciascuna variabile (da 0 a 5) aggiunge la media dei valori alla lista corrispondente nel dizionario
+        for i, values in enumerate(transposed):
+            sample[i].append(np.mean(values))
+
+    # Calcola la media e la varianza dei valori per ogni macchina
+    wip_sample_mean = [np.mean(values) for values in sample.values()]
+    wip_sample_variance = [statistics.variance(sample[i], xbar=mean) for i, mean in enumerate(wip_sample_mean)]
 
     t = t_student_critical_value(alpha=alpha, n=n)
     half_interval = [t * np.sqrt(std_dev / n) for std_dev in wip_sample_variance]

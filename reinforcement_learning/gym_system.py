@@ -4,6 +4,7 @@ from gymnasium import spaces
 import numpy as np
 import yaml
 import simpy
+import matplotlib.pyplot as plt
 
 from simulation.sim_system import SimSystem
 from simulation.job import Job
@@ -24,6 +25,8 @@ class GymSystem(gym.Env):
 
         self.reward = 0
         self.psp: list[Job] = []  # “pre-shop pool” (PSP)
+
+        self.rewards_over_time = []
 
         # Definire lo spazio delle azioni e delle osservazioni
         self.action_space = spaces.Discrete(2)  # Esempio: 2 azioni possibili, metti in produczione o no l'ordine
@@ -69,6 +72,24 @@ class GymSystem(gym.Env):
         self.simpy_env.env.process(self.simpy_env.run())  # TODO va bene?
 
         return self.get_state(), {}
+
+    def render(self, mode='human'):
+        # Visualizza lo stato attuale
+        queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
+        if len(self.psp) > 0:
+            first_element = self.psp[0]
+
+            print(
+                f"Time: {self.simpy_env.env.now}, "
+                f"queue_lengths: {queue_lengths}, "
+                f"first_element: {first_element.routing}, "
+                f"slack: {first_element.dd - self.simpy_env.env.now}")
+        else:
+            print(
+                f"Time: {self.simpy_env.env.now}, "
+                f"queue_lengths: {queue_lengths}, "
+                f"first_element: (0, 0, 0, 0, 0, 0), "
+                f"slack: 0")
 
     def get_state(self):
         queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
@@ -121,3 +142,11 @@ class GymSystem(gym.Env):
                     else:
                         self.reward -= daily_penalty * time_step
 
+        self.rewards_over_time.append(self.reward)
+
+    def plot_rewards_over_time(self):
+        plt.plot(self.rewards_over_time)
+        plt.xlabel('Time step')
+        plt.ylabel('Reward')
+        plt.title('Rewards Over Time')
+        plt.show()
