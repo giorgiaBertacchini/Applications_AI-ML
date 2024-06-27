@@ -1,2 +1,10 @@
 
-time_step: 1  # da valutare
+time_step_length: 1  # da valutare
+
+time_step_count: 100  # da valutare
+
+episode_count: 10  # da valutare
+
+learning_total_timesteps: 500  # da valutare 25000
+
+gamma: 0.99  # da valutare

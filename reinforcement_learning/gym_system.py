@@ -1,14 +1,13 @@
 import gymnasium as gym
 from gymnasium import spaces
 
+import random
 import numpy as np
 import yaml
-import simpy
 import matplotlib.pyplot as plt
 
 from simulation.sim_system import SimSystem
 from simulation.job import Job
-from simulation.machine import Machine
 
 
 with open('../conf/sim_config.yaml', 'r') as file:
@@ -33,21 +32,22 @@ class GymSystem(gym.Env):
 
         self.observation_space = spaces.Dict({
             "queue_lengths": spaces.MultiDiscrete([1000] * 6),  # Lista di interi
-            "first_job_class": spaces.MultiBinary(6),  # Lista di booleani
-            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.int32)  # Float
+            "first_job_routing": spaces.MultiBinary(6),  # Lista di booleani
+            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32)  # Float
         })
 
     def step(self, action):
         # Eseguire l'azione, butto dentro il job
-        if len(self.psp) > 0:
-            job = self.psp.pop()
-            self.simpy_env.env.process(job.main())  # TODO va bene?
-            self.job_penalty(job)
-        else:
-            print("Nessun job da buttare dentro")
+        if action == 1:
+            if len(self.simpy_env.psp) > 0:
+                job = self.simpy_env.psp.pop()
+                self.simpy_env.env.process(job.main())  # TODO va bene? perdiamo tempo li?
+                self.job_penalty(job)
+            else:
+                print("Nessun job da buttare dentro")
 
         # Wait for the next step
-        time_step = rl_config['time_step']
+        time_step = rl_config['time_step_length']
         self.simpy_env.env.run(until=self.simpy_env.env.now + time_step)
 
         # Calcolare la ricompensa
@@ -62,14 +62,15 @@ class GymSystem(gym.Env):
         return obs, self.reward, done, False, {}
 
     def reset(self, seed=None, options=None):
-        self.simpy_env.env = simpy.Environment()
-        self.simpy_env.machines = []
-        for i in range(6):
-            self.simpy_env.machines.append(Machine(env=self.simpy_env.env, capacity=1))
+        super().reset(seed=seed)  # TODO va bene?
+        # creo un nuovo simpy_env
+        random.seed(seed)
+        #self.simpy_env = SimSystem(..)
 
         self.reward = 0
-        self.psp: list[Job] = []
-        self.simpy_env.env.process(self.simpy_env.run())  # TODO va bene?
+        self.rewards_over_time = []
+
+        #self.simpy_env.env.process(self.simpy_env.run())  # TODO va bene?
 
         return self.get_state(), {}
 
@@ -82,13 +83,13 @@ class GymSystem(gym.Env):
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
-                f"first_element: {first_element.routing}, "
+                f"first_job_routing: {first_element.routing}, "
                 f"slack: {first_element.dd - self.simpy_env.env.now}")
         else:
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
-                f"first_element: (0, 0, 0, 0, 0, 0), "
+                f"first_job_routing: (0, 0, 0, 0, 0, 0), "
                 f"slack: 0")
 
     def get_state(self):
@@ -99,13 +100,13 @@ class GymSystem(gym.Env):
 
             return {
                 "queue_lengths": queue_lengths,
-                "first_element_class": first_element.routing,
-                "slack": first_element.dd - self.simpy_env.env.now
+                "first_job_routing": list(first_element.routing),
+                "slack": [first_element.dd - self.simpy_env.env.now]
             }
         return {
             "queue_lengths": queue_lengths,
-            "first_element_class": (0, 0, 0, 0, 0, 0),  # nel caso non ci siano nuovi job?
-            "slack": 0
+            "first_job_routing": [0, 0, 0, 0, 0, 0],  # nel caso non ci siano nuovi job?
+            "slack": [0.]
         }
 
     def job_penalty(self, job) -> None:
@@ -126,7 +127,7 @@ class GymSystem(gym.Env):
     def recurrent_penalty(self) -> None:
         # penalità ricorrente
         # per ogni unità
-        time_step = rl_config['time_step']
+        time_step_length = rl_config['time_step_length']
         delivery_window = config['delivery_window']
         daily_penalty = config['daily_penalty']
 
@@ -137,10 +138,10 @@ class GymSystem(gym.Env):
                     delay = self.simpy_env.env.now - job.dd - delivery_window
 
                     # Se il ritardo è inferiore al time_step
-                    if delay / time_step < 1:
+                    if delay / time_step_length < 1:
                         self.reward -= daily_penalty * delay
                     else:
-                        self.reward -= daily_penalty * time_step
+                        self.reward -= daily_penalty * time_step_length
 
         self.rewards_over_time.append(self.reward)
 

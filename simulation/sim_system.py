@@ -42,6 +42,8 @@ class SimSystem:
                 capacity=1
             ))
 
+        self.psp: list[Job] = []
+
         # Statistics: throughput
         self.th_stats: list[int] = [0]
         self.tot_finished_jobs: int = 0
@@ -122,7 +124,7 @@ class SimSystem:
             self.job_manager(end_event, job)
 
     def job_manager(self, end_event, job):
-        pass
+        self.psp.append(job)
 
     def job_finished(self, end_event):
         yield end_event
