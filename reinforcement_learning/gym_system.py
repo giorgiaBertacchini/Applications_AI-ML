@@ -23,12 +23,12 @@ class GymSystem(gym.Env):
         self.simpy_env = sim_system
 
         self.reward = 0
-        self.psp: list[Job] = []  # “pre-shop pool” (PSP)
+        #self.psp: list[Job] = []  # “pre-shop pool” (PSP)
 
         self.rewards_over_time = []
 
         # Definire lo spazio delle azioni e delle osservazioni
-        self.action_space = spaces.Discrete(2)  # Esempio: 2 azioni possibili, metti in produczione o no l'ordine
+        self.action_space = spaces.Discrete(2)  # Esempio: 2 azioni possibili, metti in produzione o no l'ordine
 
         self.observation_space = spaces.Dict({
             "queue_lengths": spaces.MultiDiscrete([1000] * 6),  # Lista di interi
@@ -37,10 +37,13 @@ class GymSystem(gym.Env):
         })
 
     def step(self, action):
+        # TODO riordinare la lista
+        self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
+
         # Eseguire l'azione, butto dentro il job
         if action == 1:
             if len(self.simpy_env.psp) > 0:
-                job = self.simpy_env.psp.pop()
+                job = self.simpy_env.psp.pop(0)
                 self.simpy_env.env.process(job.main())  # TODO va bene? perdiamo tempo li?
                 self.job_penalty(job)
             else:
@@ -59,26 +62,25 @@ class GymSystem(gym.Env):
         # Calcolare se l'episodio è finito
         done = self.simpy_env.env.now >= 10000
 
+        if done:
+            self.plot_rewards_over_time()
+
         return obs, self.reward, done, False, {}
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)  # TODO va bene?
-        # creo un nuovo simpy_env
-        random.seed(seed)
-        #self.simpy_env = SimSystem(..)
 
+        random.seed(seed)
         self.reward = 0
         self.rewards_over_time = []
-
-        #self.simpy_env.env.process(self.simpy_env.run())  # TODO va bene?
 
         return self.get_state(), {}
 
     def render(self, mode='human'):
         # Visualizza lo stato attuale
         queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
-        if len(self.psp) > 0:
-            first_element = self.psp[0]
+        if len(self.simpy_env.psp) > 0:
+            first_element = self.simpy_env.psp[0]
 
             print(
                 f"Time: {self.simpy_env.env.now}, "
@@ -89,24 +91,24 @@ class GymSystem(gym.Env):
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
-                f"first_job_routing: (0, 0, 0, 0, 0, 0), "
+                f"first_job_routing: (False, False, False, False, False, False), "
                 f"slack: 0")
 
     def get_state(self):
-        queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
+        queue_lengths = np.array([len(machine.queue) for machine in self.simpy_env.machines])  # TODO non c'è np.array
 
-        if len(self.psp) > 0:
-            first_element = self.psp[0]
+        if len(self.simpy_env.psp) > 0:
+            first_element = self.simpy_env.psp[0]
 
             return {
                 "queue_lengths": queue_lengths,
-                "first_job_routing": list(first_element.routing),
-                "slack": [first_element.dd - self.simpy_env.env.now]
+                "first_job_routing": np.array(first_element.routing),  # TODO era list()
+                "slack": np.array([first_element.dd - self.simpy_env.env.now])
             }
         return {
             "queue_lengths": queue_lengths,
-            "first_job_routing": [0, 0, 0, 0, 0, 0],  # nel caso non ci siano nuovi job?
-            "slack": [0.]
+            "first_job_routing": np.array([False, False, False, False, False, False]),  # TODO era senza np.array
+            "slack": np.array([0.])
         }
 
     def job_penalty(self, job) -> None:
@@ -132,10 +134,10 @@ class GymSystem(gym.Env):
         daily_penalty = config['daily_penalty']
 
         for machine in self.simpy_env.machines:
-            for job in machine.queue:
+            for req in machine.queue:
                 # nel caso di ritardi
-                if job.dd + delivery_window < self.simpy_env.env.now:
-                    delay = self.simpy_env.env.now - job.dd - delivery_window
+                if req.job.dd + delivery_window < self.simpy_env.env.now:
+                    delay = self.simpy_env.env.now - req.job.dd - delivery_window
 
                     # Se il ritardo è inferiore al time_step
                     if delay / time_step_length < 1:
@@ -151,3 +153,6 @@ class GymSystem(gym.Env):
         plt.ylabel('Reward')
         plt.title('Rewards Over Time')
         plt.show()
+
+    def simpy_env_reset(self, sim_system: SimSystem) -> None:
+        self.simpy_env = sim_system

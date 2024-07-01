@@ -92,7 +92,7 @@ class Machine(simpy.Resource):
         # Update the queue length over time
         self._update_qt()
 
-    def request(self) -> Request:
+    def request(self, job: object) -> Request:
         """
         Request the server.
         Overrides the `request` method of `simpy.Resource`.
@@ -102,6 +102,9 @@ class Machine(simpy.Resource):
 
         # Request the server
         request = super().request()
+
+        # Monkey patch the request object to include a reference to the customer
+        request.job = job
 
         # Update the queue history
         self._update_queue_history(None)

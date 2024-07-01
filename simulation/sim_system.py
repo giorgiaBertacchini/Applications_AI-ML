@@ -35,6 +35,7 @@ class SimSystem:
 
         self.machines: list[Machine] = []
         self.jobs: list[Job] = []
+        self.jobs_inter_arrival_times: list[float] = []
 
         for i in range(6):
             self.machines.append(Machine(
@@ -42,11 +43,10 @@ class SimSystem:
                 capacity=1
             ))
 
-        self.psp: list[Job] = []
+        self.psp: list[Job] = []  # “pre-shop pool” (PSP)
 
         # Statistics: throughput
         self.th_stats: list[int] = [0]
-        self.tot_finished_jobs: int = 0
         self.last_total_th = 0
 
         # Statistics: wip
@@ -54,6 +54,9 @@ class SimSystem:
 
         # Statistics: mean time in system
         self.mts_stats: list[float] = []
+
+        # Statistics: mean delay in system
+        self.mds_stats: list[float] = []
 
         self.env.process(self.run())
 
@@ -66,6 +69,13 @@ class SimSystem:
         if config['mean_time_in_system_sampling']:
             self.env.process(self.mean_time_in_system_sampler())
 
+        if config['mean_delay_in_system_sampling']:
+            self.env.process(self.mean_delay_in_system_sampler())
+
+    @property
+    def finished_jobs(self) -> int:
+        return sum(job.done for job in self.jobs)
+
     def wip_sampler(self):
         while True:
             yield self.env.timeout(float(config['wip_timestep']))
@@ -75,9 +85,23 @@ class SimSystem:
     def throughput_sampler(self):
         while True:
             yield self.env.timeout(float(config['throughput_timestep']))
-            delta = self.tot_finished_jobs - self.last_total_th
+            delta = self.finished_jobs - self.last_total_th
             self.th_stats.append(delta)
-            self.last_total_th = self.tot_finished_jobs
+            self.last_total_th = self.finished_jobs
+
+    def mean_delay_in_system_sampler(self):  # devo fare la media dei tempi di attesa in coda e di servizio
+        while True:
+            yield self.env.timeout(float(config['mean_delay_in_system_timestep']))
+            total_delay = []
+            for job in self.jobs:
+                total_delay.append(sum(job.delays))
+            if len(total_delay) > 0:
+                mean_mds = statistics.mean(total_delay)
+                self.mds_stats.append(mean_mds)
+            else:
+                self.mds_stats.append(0)
+            #mean_mds = statistics.mean(sum(job.delays) for job in self.jobs)
+            #self.mds_stats.append(mean_mds)
 
     def mean_time_in_system_sampler(self):
         while True:
@@ -90,8 +114,11 @@ class SimSystem:
     def run(self):
         while True:
 
+            jobs_inter_arrival_time = self.inter_arrival_time_distribution()
+            self.jobs_inter_arrival_times.append(jobs_inter_arrival_time)
+
             # Wait for the next customer to arrive
-            yield self.env.timeout(self.inter_arrival_time_distribution())
+            yield self.env.timeout(jobs_inter_arrival_time)
 
             # Create a new job
             family_group = self.family_index()
@@ -110,10 +137,8 @@ class SimSystem:
                 else:
                     processing_time_list.append(self.f3_processing_time_distribution())
 
-            end_event = self.env.event()
             job = Job(
                 env=self.env,
-                end_event=end_event,
                 family_group=family_group,
                 routing=new_routing,
                 processing_times=processing_time_list,
@@ -121,11 +146,8 @@ class SimSystem:
                 dd=self.dd() + self.env.now
             )
 
-            self.job_manager(end_event, job)
+            self.job_manager(job)
 
-    def job_manager(self, end_event, job):
+    def job_manager(self, job):
+        self.jobs.append(job)
         self.psp.append(job)
-
-    def job_finished(self, end_event):
-        yield end_event
-        self.tot_finished_jobs += 1

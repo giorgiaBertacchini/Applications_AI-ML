@@ -3,8 +3,17 @@ from collections.abc import Sequence
 from scipy import stats
 import numpy as np
 import statistics
+import yaml
 
 from simulation.sim_system import SimSystem
+from stats.welch import Welch
+from stats.analysis_view import wip_table, wip_plt, mts_table, mds_table, throughput_table
+
+with open('../conf/sim_config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+with open('../conf/welch_params.yaml', 'r') as file:
+    welch_params = yaml.safe_load(file)
 
 
 def t_student_critical_value(alpha: float, n: int) -> float:
@@ -47,9 +56,73 @@ def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.
     return wip_sample_mean, wip_sample_variance, half_interval
 
 
-def analyze_mean_delay():
-    pass
+def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05):  # TODO to CHECK
+    n = len(runs)
+    sample = [np.mean(run.mds_stats[warmup_period:]) for run in runs]
+    delay_sample_mean = np.mean(sample)
+    delay_sample_variance = statistics.variance(sample, xbar=delay_sample_mean)
+    t = t_student_critical_value(alpha=alpha, n=n)
+    half_interval = t * np.sqrt(delay_sample_variance / n)
+    return delay_sample_mean, delay_sample_variance, half_interval
 
 
-def analyze_mts(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:
-    pass
+def analyze_mean_time_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) \
+        -> tuple[float, float, float]:  # TODO to CHECK
+    n = len(runs)
+    sample = [np.mean(run.mts_stats[warmup_period:]) for run in runs]
+    time_in_system_sample_mean = np.mean(sample)
+    time_in_system_sample_variance = statistics.variance(sample, xbar=time_in_system_sample_mean)
+    t = t_student_critical_value(alpha=alpha, n=n)
+    half_interval = t * np.sqrt(time_in_system_sample_variance / n)
+    return time_in_system_sample_mean, time_in_system_sample_variance, half_interval
+
+
+def output_analyze(system_collection: list[SimSystem]):
+    system_runs_arr = np.array([run.th_stats for run in system_collection])
+    welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
+    welch.plot()
+
+    if config['throughput_sampling']:
+        alpha = welch_params['analyze_throughput']['alpha']
+        throughput_sample_mean, throughput_sample_variance, half_interval = analyze_throughput(
+            system_collection,
+            warmup_period=welch.warmup_period,
+            alpha=alpha)
+        throughput_table(throughput_sample_mean, throughput_sample_variance, half_interval)
+
+    if config['wip_sampling']:
+        alpha = welch_params['analyze_wip']['alpha']
+
+        wip_sample_mean, wip_sample_variance, wip_half_interval = (
+            analyze_wip(
+                system_collection,
+                warmup_period=welch.warmup_period,
+                alpha=alpha)
+        )
+
+        wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval)
+        wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha)
+
+    if config['mean_time_in_system_sampling']:
+        alpha = welch_params['analyze_mts']['alpha']
+
+        mts_sample_mean, mts_sample_variance, mts_half_interval = (
+            analyze_mean_time_in_system(
+                system_collection,
+                warmup_period=welch.warmup_period,
+                alpha=alpha)
+        )
+
+        mts_table(mts_sample_mean, mts_sample_variance, mts_half_interval)
+
+    if config['mean_delay_in_system_sampling']:
+        alpha = welch_params['analyze_mds']['alpha']
+
+        mds_sample_mean, mds_sample_variance, mds_half_interval = (
+            analyze_mean_delay_in_system(
+                system_collection,
+                warmup_period=welch.warmup_period,
+                alpha=alpha)
+        )
+
+        mds_table(mds_sample_mean, mds_sample_variance, mds_half_interval)

@@ -8,8 +8,7 @@ from typing import Sequence
 
 from push_policy.push_system import PushSystem
 from stats.welch import Welch
-from stats.analysis import analyze_throughput, analyze_wip
-from stats.analysis_view import wip_table, wip_plt
+from stats.analysis import output_analyze
 
 N = 20
 M = N + 100
@@ -77,35 +76,7 @@ def run_and_statistics(*seeds: int) -> None:
 
     system_runs = main_push_system(*seeds[N:M], until=welch_params['analyze_throughput']['until'])  # TODO 60 * 160
 
-    if config['throughput_sampling']:
-        # Analyze Throughput
-        alpha = welch_params['analyze_throughput']['alpha']
-
-        throughput_sample_mean, throughput_sample_variance, half_interval = (
-            analyze_throughput(system_runs,
-                               warmup_period=welch.warmup_period,
-                               alpha=alpha)
-        )
-        print(f"\nThroughput Sample Mean: {throughput_sample_mean:.2f}")
-        print(f"Throughput Sample Variance: {throughput_sample_variance:.2f}")
-        print(f"Half Interval: {half_interval:.2f}")
-        print(
-            f"Confidence Interval [{alpha=}]: ({throughput_sample_mean - half_interval:.2f}, {throughput_sample_mean + half_interval:.2f})")
-        print(f"Relative Error: {100 * half_interval / throughput_sample_mean:.2f}%")
-
-    if config['wip_sampling']:
-        # Analyze WIP
-        alpha = welch_params['analyze_wip']['alpha']
-
-        wip_sample_mean, wip_sample_variance, wip_half_interval = (
-            analyze_wip(
-                system_runs,
-                warmup_period=welch.warmup_period,
-                alpha=alpha)
-        )
-
-        wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval)
-        wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha)
+    output_analyze(system_runs)
 
 
 run_and_statistics(*seeds)
