@@ -1,4 +1,6 @@
 import random
+from typing import List
+
 import simpy
 import yaml
 
@@ -108,8 +110,10 @@ def run_prog(*seeds: int):
         model = PPO("MultiInputPolicy", gym_env, verbose=1)
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
 
-    total_reward_over_episodes = []
+    total_reward_over_episodes: list[float] = []
     sim_system_collection = []
+    last_job_count = []
+    last_finished_job_count = []
     for e in range(int(rl_params['episode_count'])):  # 10 episodi
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
@@ -132,15 +136,19 @@ def run_prog(*seeds: int):
                 break
 
             obs = next_state
+        last_job_count.append(len(gym_env.simpy_env.jobs))
+        last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
 
         total_reward_over_episodes.append(total_reward)  # Store the total reward
         sim_system_collection.append(gym_env.simpy_env)
 
+    print(f"Last Job Count: {last_job_count}")
+    print(f"Last Finished Job Count: {last_finished_job_count}")
     gym_env.close()
     return total_reward_over_episodes, sim_system_collection
 
 
-seed_count = rl_params['episode_count'] + 10
+seed_count = rl_params['episode_count'] + 1
 total_reward_over_episodes, sim_system_collection = run_prog(*seeds[:seed_count])
 
 title = ''

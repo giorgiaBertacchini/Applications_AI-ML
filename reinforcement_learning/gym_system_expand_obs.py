@@ -32,7 +32,9 @@ class GymSystem(gym.Env):
         self.observation_space = spaces.Dict({
             "queue_lengths": spaces.MultiDiscrete([1000] * 6),  # Lista di interi
             "first_job_routing": spaces.MultiBinary(6),  # Lista di booleani
-            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32)  # Float
+            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
+            "psp_length": spaces.Discrete(1000),  # Lunghezza della lista psp
+            "processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32)  # Lista dei tempi di elaborazione
         })
 
     def step(self, action):
@@ -85,13 +87,17 @@ class GymSystem(gym.Env):
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
                 f"first_job_routing: {first_element.routing}, "
-                f"slack: {first_element.dd - self.simpy_env.env.now}")
+                f"slack: {first_element.dd - self.simpy_env.env.now}, "
+                f"psp_length: {len(self.simpy_env.psp)}, "
+                f"processing_times: {first_element.processing_times}")
         else:
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
                 f"first_job_routing: (False, False, False, False, False, False), "
-                f"slack: 0")
+                f"slack: 0, "
+                f"psp_length: 0,"
+                f"processing_times: [0., 0., 0., 0., 0., 0.]")
 
     def get_state(self):
         queue_lengths = np.array([len(machine.queue) for machine in self.simpy_env.machines])  # TODO non c'è np.array
@@ -102,12 +108,16 @@ class GymSystem(gym.Env):
             return {
                 "queue_lengths": queue_lengths,
                 "first_job_routing": np.array(first_element.routing),  # TODO era list()
-                "slack": np.array([first_element.dd - self.simpy_env.env.now])
+                "slack": np.array([first_element.dd - self.simpy_env.env.now]),
+                "psp_length": len(self.simpy_env.psp),
+                "processing_times": np.array(first_element.processing_times)
             }
         return {
             "queue_lengths": queue_lengths,
             "first_job_routing": np.array([False, False, False, False, False, False]),  # TODO era senza np.array
-            "slack": np.array([0.])
+            "slack": np.array([0.]),
+            "psp_length": 0,
+            "processing_times": np.array([0., 0., 0., 0., 0., 0.])
         }
 
     def job_penalty(self, job) -> None:

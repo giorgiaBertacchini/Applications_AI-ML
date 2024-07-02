@@ -22,7 +22,7 @@ def t_student_critical_value(alpha: float, n: int) -> float:
 
 def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[
     float, float, float]:
-    n = len(runs)  # TODO non sarebbero - warmup_period ?
+    n = len(runs)
     sample = [np.mean(run.th_stats[warmup_period:]) for run in runs]
     throughput_sample_mean = np.mean(sample)
     throughput_sample_variance = statistics.variance(sample, xbar=throughput_sample_mean)
@@ -33,7 +33,7 @@ def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: flo
 
 def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> (
         tuple)[list[float], list[float], list[float]]:
-    n = len(runs)  # TODO non sarebbero - warmup_period ?
+    n = len(runs)
 
     # Inizializza un dizionario con chiavi da 0 a 5, ciascuna con una lista vuota come valore
     sample = {i: [] for i in range(6)}
