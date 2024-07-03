@@ -16,9 +16,9 @@ with open('../conf/rl_parameters.yaml', 'r') as rl_file:
     rl_config = yaml.safe_load(rl_file)
 
 
-class GymSystem(gym.Env):
+class GymExpandedSystem(gym.Env):
     def __init__(self, sim_system: SimSystem):
-        super(GymSystem, self).__init__()
+        super(GymExpandedSystem, self).__init__()
         self.simpy_env = sim_system
 
         self.reward = 0
@@ -33,7 +33,7 @@ class GymSystem(gym.Env):
             "queue_lengths": spaces.MultiDiscrete([1000] * 6),  # Lista di interi
             "first_job_routing": spaces.MultiBinary(6),  # Lista di booleani
             "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
-            "psp_length": spaces.Discrete(1000),  # Lunghezza della lista psp
+            "psp_length": spaces.Discrete(1000000),  # Lunghezza della lista psp
             "processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32)  # Lista dei tempi di elaborazione
         })
 
@@ -83,13 +83,16 @@ class GymSystem(gym.Env):
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
 
+            processing_times = np.array(first_element.processing_times)
+            padded_processing_times = np.pad(processing_times, (0, 6 - len(processing_times)))
+
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
                 f"first_job_routing: {first_element.routing}, "
                 f"slack: {first_element.dd - self.simpy_env.env.now}, "
                 f"psp_length: {len(self.simpy_env.psp)}, "
-                f"processing_times: {first_element.processing_times}")
+                f"processing_times: {padded_processing_times}")
         else:
             print(
                 f"Time: {self.simpy_env.env.now}, "
@@ -105,12 +108,15 @@ class GymSystem(gym.Env):
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
 
+            processing_times = np.array(first_element.processing_times)
+            padded_processing_times = np.pad(processing_times, (0, 6 - len(processing_times)))
+
             return {
                 "queue_lengths": queue_lengths,
                 "first_job_routing": np.array(first_element.routing),  # TODO era list()
                 "slack": np.array([first_element.dd - self.simpy_env.env.now]),
                 "psp_length": len(self.simpy_env.psp),
-                "processing_times": np.array(first_element.processing_times)
+                "processing_times": padded_processing_times
             }
         return {
             "queue_lengths": queue_lengths,
@@ -124,8 +130,8 @@ class GymSystem(gym.Env):
         # penalty solo quando terminato l'item.
         # Ma potrei anche al giorno vedere il mio penalty aumentare nel caso di ritardi
 
-        delivery_window = config['delivery_window']
-        daily_penalty = config['daily_penalty']
+        delivery_window = rl_config['delivery_window']
+        daily_penalty = rl_config['daily_penalty']
 
         if job.dd - delivery_window > self.simpy_env.env.now:
             # troppo in anticipo
@@ -139,8 +145,8 @@ class GymSystem(gym.Env):
         # penalità ricorrente
         # per ogni unità
         time_step_length = rl_config['time_step_length']
-        delivery_window = config['delivery_window']
-        daily_penalty = config['daily_penalty']
+        delivery_window = rl_config['delivery_window']
+        daily_penalty = rl_config['daily_penalty']
 
         for machine in self.simpy_env.machines:
             for req in machine.queue:

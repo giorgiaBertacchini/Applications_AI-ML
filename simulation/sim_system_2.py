@@ -6,7 +6,7 @@ from typing import List  # TODO va bene?
 from collections.abc import Callable, Generator
 
 from simulation.machine import Machine
-from simulation.job import Job
+from simulation.job_2 import Job
 
 with open('../conf/sim_config.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -111,7 +111,7 @@ class SimSystem:
                 sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)  # TODO si può migliorare
             self.mts_stats.append(mean_mts)
 
-    def run(self):
+    def run(self) -> None:
         while True:
             jobs_inter_arrival_time = self.inter_arrival_time_distribution()
             self.jobs_inter_arrival_times.append(jobs_inter_arrival_time)
@@ -127,26 +127,27 @@ class SimSystem:
             new_routing = [True if family_routing[i] <= config_routing[i] else False for i in range(6)]
 
             processing_time_list = []
-
-            for i in range(sum(new_routing)):
-                if family_group == 1:
-                    processing_time_list.append(self.f1_processing_time_distribution())
-                elif family_group == 2:
-                    processing_time_list.append(self.f2_processing_time_distribution())
+            for i in range(6):
+                if new_routing[i]:
+                    if family_group == 1:
+                        processing_time_list.append(self.f1_processing_time_distribution())
+                    elif family_group == 2:
+                        processing_time_list.append(self.f2_processing_time_distribution())
+                    else:
+                        processing_time_list.append(self.f3_processing_time_distribution())
                 else:
-                    processing_time_list.append(self.f3_processing_time_distribution())
+                    processing_time_list.append(0)
 
             job = Job(
                 env=self.env,
                 family_group=family_group,
-                routing=new_routing,
                 processing_times=processing_time_list,
-                machines=[server for in_routing, server in zip(new_routing, self.machines) if in_routing],
+                machines=self.machines,
                 dd=self.dd() + self.env.now
             )
 
             self.job_manager(job)
 
-    def job_manager(self, job):
+    def job_manager(self, job: Job) -> None:
         self.jobs.append(job)
         self.psp.append(job)

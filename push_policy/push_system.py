@@ -1,4 +1,5 @@
-from simulation.sim_system import SimSystem
+#from simulation.sim_system import SimSystem
+from simulation.sim_system_2 import SimSystem
 
 
 class PushSystem(SimSystem):

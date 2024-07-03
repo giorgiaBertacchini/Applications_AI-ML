@@ -20,8 +20,7 @@ def t_student_critical_value(alpha: float, n: int) -> float:
     return stats.t.ppf(1 - alpha, n - 1)
 
 
-def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[
-    float, float, float]:
+def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:
     n = len(runs)
     sample = [np.mean(run.th_stats[warmup_period:]) for run in runs]
     throughput_sample_mean = np.mean(sample)
@@ -31,23 +30,22 @@ def analyze_throughput(runs: Sequence[SimSystem], warmup_period: int, alpha: flo
     return throughput_sample_mean, throughput_sample_variance, half_interval
 
 
-def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> (
-        tuple)[list[float], list[float], list[float]]:
+def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[list[float], list[float], list[float]]:
     n = len(runs)
 
-    # Inizializza un dizionario con chiavi da 0 a 5, ciascuna con una lista vuota come valore
+    # Initialize a dictionary with keys from 0 to 5, each with an empty list as the value
     sample = {i: [] for i in range(6)}
 
-    # Itera su ogni run di simulazione
+    # Iterate on each simulation run
     for run in runs:
-        # Prende i dati della simulazione ignorando il periodo di warmup e li trasposta
-        transposed = list(zip(*run.wip_stats[warmup_period:]))  # lista di 6 elementi
+        # Takes the simulation data ignoring the warmup period and transposes it
+        transposed = list(zip(*run.wip_stats[warmup_period:]))  # list of 6 items
 
-        # Per ciascuna variabile (da 0 a 5) aggiunge la media dei valori alla lista corrispondente nel dizionario
+        # For each variable (0 to 5) adds the average of the values to the corresponding list in the dictionary
         for i, values in enumerate(transposed):
             sample[i].append(np.mean(values))
 
-    # Calcola la media e la varianza dei valori per ogni macchina
+    # Calculate the mean and variance of the values for each machine
     wip_sample_mean = [np.mean(values) for values in sample.values()]
     wip_sample_variance = [statistics.variance(sample[i], xbar=mean) for i, mean in enumerate(wip_sample_mean)]
 
@@ -56,7 +54,7 @@ def analyze_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.
     return wip_sample_mean, wip_sample_variance, half_interval
 
 
-def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05):  # TODO to CHECK
+def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:  # TODO to CHECK
     n = len(runs)
     sample = [np.mean(run.mds_stats[warmup_period:]) for run in runs]
     delay_sample_mean = np.mean(sample)
@@ -77,7 +75,7 @@ def analyze_mean_time_in_system(runs: Sequence[SimSystem], warmup_period: int, a
     return time_in_system_sample_mean, time_in_system_sample_variance, half_interval
 
 
-def output_analyze(system_collection: list[SimSystem]):
+def output_analyze(system_collection: list[SimSystem]) -> None:
     system_runs_arr = np.array([run.th_stats for run in system_collection])
     welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
     welch.plot()

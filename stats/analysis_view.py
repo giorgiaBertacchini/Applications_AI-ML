@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import List
 
 from tabulate import tabulate
 
 
-def throughput_table(throughput_sample_mean, throughput_sample_variance, half_interval):
+def throughput_table(throughput_sample_mean: float, throughput_sample_variance: float, half_interval: float) -> None:
     # Calculate the confidence interval
     conf_interval_min = throughput_sample_mean - half_interval
     conf_interval_max = throughput_sample_mean + half_interval
@@ -23,15 +24,13 @@ def throughput_table(throughput_sample_mean, throughput_sample_variance, half_in
               f"{conf_interval_min:.2f}, {conf_interval_max:.2f}",
               f"{relative_error if relative_error == 'Undefined' else f'{relative_error:.2f}%'}"]]
 
-    # Stampa della tabella
     print(tabulate(table, headers, tablefmt="pretty"))
 
 
-def wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval):
-    # Creazione della tabella
+def wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval) -> None:
     table = []
     for i, (mean, var, hi) in enumerate(zip(wip_sample_mean, wip_sample_variance, wip_half_interval)):
-        if mean != 0:  # Evitare la divisione per zero
+        if mean != 0:  # Avoiding division by zero
             relative_error = 100 * hi / mean
         else:
             relative_error = 'Undefined'
@@ -40,21 +39,19 @@ def wip_table(wip_sample_mean, wip_sample_variance, wip_half_interval):
                       f"{confidence_interval[0]:.2f}, {confidence_interval[1]:.2f}",
                       f"{relative_error:.2f}%" if mean != 0 else relative_error])
 
-    # Definizione delle intestazioni della tabella
     headers = ["Machine", "Mean", "Variance", "Half Interval", "Confidence Interval", "Relative Error"]
 
-    # Stampa della tabella
     print(tabulate(table, headers, tablefmt="pretty"))
 
 
-def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha):
+def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha) -> None:
     machines = np.arange(1, len(wip_sample_mean) + 1)
 
-    # Calcola intervalli di confidenza
+    # Calculate confidence intervals
     conf_interval_lower = np.array(wip_sample_mean) - np.array(wip_half_interval)
     conf_interval_upper = np.array(wip_sample_mean) + np.array(wip_half_interval)
 
-    # Crea figura per le medie dei campioni
+    # Create figure for sample averages
     plt.figure(figsize=(10, 6))
     plt.bar(machines, wip_sample_mean, yerr=wip_half_interval, capsize=5, color='skyblue')
     plt.title('WIP Sample Mean with Confidence Intervals')
@@ -64,7 +61,7 @@ def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha):
     plt.xticks(machines)
     plt.show()
 
-    # Crea figura per la varianza dei campioni
+    # Plot sample variance
     plt.figure(figsize=(10, 6))
     plt.bar(machines, wip_sample_variance, color='lightgreen')
     plt.title('WIP Sample Variance')
@@ -74,7 +71,7 @@ def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha):
     plt.xticks(machines)
     plt.show()
 
-    # Crea figura per gli intervalli di confidenza
+    # Plot the confidence intervals
     plt.figure(figsize=(10, 6))
     plt.plot(machines, wip_sample_mean, 'o', label='Sample Mean', markersize=8)
     for i in range(len(machines)):
@@ -87,7 +84,7 @@ def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha):
     plt.legend()
     plt.show()
 
-    # Calcolo degli errori relativi e creazione del grafico
+    # Calculation of relative errors and plot
     relative_errors = 100 * np.array(wip_half_interval) / np.array(wip_sample_mean)
     plt.figure(figsize=(10, 6))
     plt.bar(machines, relative_errors, color='salmon')
@@ -99,7 +96,7 @@ def wip_plt(wip_sample_mean, wip_sample_variance, wip_half_interval, alpha):
     plt.show()
 
 
-def mds_table(delay_sample_mean, delay_sample_variance, half_interval):
+def mds_table(delay_sample_mean: float, delay_sample_variance: float, half_interval: float) -> None:
     # Calculate the confidence interval
     conf_interval_min = delay_sample_mean - half_interval
     conf_interval_max = delay_sample_mean + half_interval
@@ -121,7 +118,7 @@ def mds_table(delay_sample_mean, delay_sample_variance, half_interval):
     print(tabulate(table, headers=headers, tablefmt="pretty"))
 
 
-def mts_table(time_in_system_sample_mean, time_in_system_sample_variance, half_interval):
+def mts_table(time_in_system_sample_mean: float, time_in_system_sample_variance: float, half_interval: float) -> None:
     # Calculate the confidence interval
     conf_interval_min = time_in_system_sample_mean - half_interval
     conf_interval_max = time_in_system_sample_mean + half_interval
@@ -141,3 +138,28 @@ def mts_table(time_in_system_sample_mean, time_in_system_sample_variance, half_i
               f"{relative_error if relative_error == 'Undefined' else f'{relative_error:.2f}%'}"]]
 
     print(tabulate(table, headers=headers, tablefmt="pretty"))
+
+
+def utilization_plt(utilization_rates: List[List[float]]) -> None:
+    # Convert the list of lists into a 2D numpy array
+    utilization_rates_array = np.array(utilization_rates)
+
+    # Calculate the mean of each column
+    average_utilization_rates = np.mean(utilization_rates_array, axis=0)
+
+    # Convert the result back to a list
+    average_utilization_rates_list = average_utilization_rates.tolist()
+
+    average_utilization_rates_percent = [f"{value * 100:.2f}" for value in average_utilization_rates]
+
+    print(average_utilization_rates_list)
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(average_utilization_rates_percent, utilization_rates, color='skyblue')
+    plt.title('Machine Utilization Rates')
+    plt.xlabel('Machine')
+    plt.ylabel('Utilization Rate')
+    plt.grid(True)
+    plt.xticks(average_utilization_rates_percent)
+    plt.show()
+

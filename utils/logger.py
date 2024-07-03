@@ -8,7 +8,7 @@ class Logger:
         self.env = env
         Logger.last_timestamp = self.env.now
 
-    def log(self, message: str):
+    def log(self, message: str) -> None:
         if self.env.now > Logger.last_timestamp:
             print()
 
