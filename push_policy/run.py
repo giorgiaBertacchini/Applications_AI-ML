@@ -76,7 +76,7 @@ def run_and_statistics(*seeds: int) -> None:
 
     system_runs = main_push_system(*seeds[N:M], until=welch_params['analyze_throughput']['until'])  # TODO 60 * 160
 
-    output_analyze(system_runs)
+    output_analyze(list(system_runs), welch.warmup_period)
 
 
 run_and_statistics(*seeds)

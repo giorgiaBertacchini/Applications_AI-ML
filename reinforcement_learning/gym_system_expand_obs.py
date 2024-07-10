@@ -31,10 +31,9 @@ class GymExpandedSystem(gym.Env):
 
         self.observation_space = spaces.Dict({
             "queue_lengths": spaces.MultiDiscrete([1000] * 6),  # Lista di interi
-            "first_job_routing": spaces.MultiBinary(6),  # Lista di booleani
+            "first_job_processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32),  # List of floats
             "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
             "psp_length": spaces.Discrete(1000000),  # Lunghezza della lista psp
-            "processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32)  # Lista dei tempi di elaborazione
         })
 
     def step(self, action):
@@ -46,7 +45,6 @@ class GymExpandedSystem(gym.Env):
             if len(self.simpy_env.psp) > 0:
                 job = self.simpy_env.psp.pop(0)
                 self.simpy_env.env.process(job.main())
-                self.job_penalty(job)
             else:
                 print("Nessun job da buttare dentro")
 
@@ -54,8 +52,8 @@ class GymExpandedSystem(gym.Env):
         time_step = rl_config['time_step_length']
         self.simpy_env.env.run(until=self.simpy_env.env.now + time_step)
 
-        # Calcolare la ricompensa
-        self.recurrent_penalty()
+        # Calculate the reward
+        self.simpy_env.get_reward()
 
         # Calcolare l'osservazione
         obs = self.get_state()
@@ -89,21 +87,19 @@ class GymExpandedSystem(gym.Env):
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
-                f"first_job_routing: {first_element.routing}, "
+                f"first_job_processing_times: {first_element.processing_times}, "
                 f"slack: {first_element.dd - self.simpy_env.env.now}, "
-                f"psp_length: {len(self.simpy_env.psp)}, "
-                f"processing_times: {padded_processing_times}")
+                f"psp_length: {len(self.simpy_env.psp)} ")
         else:
             print(
                 f"Time: {self.simpy_env.env.now}, "
                 f"queue_lengths: {queue_lengths}, "
-                f"first_job_routing: (False, False, False, False, False, False), "
+                f"first_job_processing_times: [0., 0., 0., 0., 0., 0.], "
                 f"slack: 0, "
-                f"psp_length: 0,"
-                f"processing_times: [0., 0., 0., 0., 0., 0.]")
+                f"psp_length: 0")
 
     def get_state(self):
-        queue_lengths = np.array([len(machine.queue) for machine in self.simpy_env.machines])  # TODO non c'è np.array
+        queue_lengths = np.array([len(machine.queue) for machine in self.simpy_env.machines])
 
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
@@ -113,54 +109,16 @@ class GymExpandedSystem(gym.Env):
 
             return {
                 "queue_lengths": queue_lengths,
-                "first_job_routing": np.array(first_element.routing),  # TODO era list()
+                "first_job_processing_times": np.array(first_element.processing_times),
                 "slack": np.array([first_element.dd - self.simpy_env.env.now]),
-                "psp_length": len(self.simpy_env.psp),
-                "processing_times": padded_processing_times
+                "psp_length": len(self.simpy_env.psp)
             }
         return {
             "queue_lengths": queue_lengths,
-            "first_job_routing": np.array([False, False, False, False, False, False]),  # TODO era senza np.array
+            "first_job_processing_times": np.array([0., 0., 0., 0., 0., 0.]),
             "slack": np.array([0.]),
-            "psp_length": 0,
-            "processing_times": np.array([0., 0., 0., 0., 0., 0.])
+            "psp_length": 0
         }
-
-    def job_penalty(self, job) -> None:
-        # penalty solo quando terminato l'item.
-        # Ma potrei anche al giorno vedere il mio penalty aumentare nel caso di ritardi
-
-        delivery_window = rl_config['delivery_window']
-        daily_penalty = rl_config['daily_penalty']
-
-        if job.dd - delivery_window > self.simpy_env.env.now:
-            # troppo in anticipo
-            self.reward -= daily_penalty * (job.dd - self.simpy_env.env.now - delivery_window)
-
-        #if job.dd < (self.simpy_env.env.now - delivery_window):
-        #    # troppo in ritardo
-        #    self.reward -= daily_penalty * (job.dd - (self.simpy_env.env.now - delivery_window))
-
-    def recurrent_penalty(self) -> None:
-        # penalità ricorrente
-        # per ogni unità
-        time_step_length = rl_config['time_step_length']
-        delivery_window = rl_config['delivery_window']
-        daily_penalty = rl_config['daily_penalty']
-
-        for machine in self.simpy_env.machines:
-            for req in machine.queue:
-                # nel caso di ritardi
-                if req.job.dd + delivery_window < self.simpy_env.env.now:
-                    delay = self.simpy_env.env.now - req.job.dd - delivery_window
-
-                    # Se il ritardo è inferiore al time_step
-                    if delay / time_step_length < 1:
-                        self.reward -= daily_penalty * delay
-                    else:
-                        self.reward -= daily_penalty * time_step_length
-
-        self.rewards_over_time.append(self.reward)
 
     def plot_rewards_over_time(self):
         plt.plot(self.rewards_over_time)

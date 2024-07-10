@@ -13,7 +13,6 @@ class Job:
             self,
             env: simpy.Environment,
             family_group: int,
-            routing: Sequence[bool],
             processing_times: Sequence[float],
             machines: Sequence[Machine],
             dd: float
@@ -21,7 +20,6 @@ class Job:
         self.env = env
         self.family_group = family_group
         self.processing_times = processing_times
-        self.routing = routing
         self.machines = machines
         self.dd = dd
 
@@ -36,7 +34,7 @@ class Job:
 
         #self.logger.log(f'{self} enters in system...')
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name}\033[0m"
 
     @property
@@ -47,23 +45,23 @@ class Job:
         self.done = False
         for machine, processing_time in zip(self.machines, self.processing_times):
 
-            with machine.request(job=self) as request:
-                # Record the time the customer joined the queue
-                queue_entry_time = self.env.now
+            if processing_time > 0:
+                with machine.request(job=self) as request:
+                    # Record the time the customer joined the queue
+                    queue_entry_time = self.env.now
 
-                # Wait for the server to become available
-                yield request
+                    # Wait for the server to become available
+                    yield request
 
-                # Record the time the customer left the queue
-                queue_exit_time = self.env.now
+                    # Record the time the customer left the queue
+                    queue_exit_time = self.env.now
 
-                # Calculate the time the customer spent waiting in the queue
-                self.delays.append(queue_exit_time - queue_entry_time)
+                    # Calculate the time the customer spent waiting in the queue
+                    self.delays.append(queue_exit_time - queue_entry_time)
 
-                # Wait for the server to process the customer
-                yield self.env.process(machine.process_job(processing_time))
+                    # Wait for the server to process the customer
+                    yield self.env.process(machine.process_job(processing_time))
 
-                self.real_routing.append((machine, processing_time))
+                    self.real_routing.append((machine, processing_time))
 
-        #self.logger.log(f'{self} completed!')
         self.done = True
