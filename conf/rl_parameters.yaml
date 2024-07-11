@@ -1,13 +1,15 @@
 
-model: "DQN"  # A2C, DQN, PPO
+model: "PPO"  # A2C, DQN, PPO
 
-time_step_length: 0.5  # da valutare
+time_step_length: 0.65  # da valutare
 
-time_step_count: 6000  # 18250 da valutare
+time_step_count: 8000  # 18250 da valutare
 
 #episode_count: 50  # da valutare 1000
-episode_count: 10
+episode_count: 20
 
-learning_total_timesteps: 5000  # da valutare 25000
+episode_length: 9125  # 25 years
+
+learning_total_timesteps: 18000  # da valutare 25000
 
 gamma: 0.99  # da valutare

@@ -120,6 +120,15 @@ def run_prog(*seeds: int):
     last_job_count = []
     last_finished_job_count = []
     utilization_rates = []
+
+    # TODO per normalizzare:
+    max_wip = float('-inf')
+
+    max_first_job_processing_times = float('-inf')
+
+    min_slack = float('inf')
+    max_slack = float('-inf')
+
     for e in range(int(rl_params['episode_count'])):  # 10 episodi
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
@@ -135,13 +144,30 @@ def run_prog(*seeds: int):
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
+            print(f"Reward: {reward}")
+            print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
+            print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
+
             total_reward += reward
 
             if done or truncated:
                 print(f"Episodio terminato! Reward: {total_reward}; i: {i}")
                 break
 
+            if 'wip' in next_state and max(next_state['wip']) > max_wip:
+                max_wip = max(next_state['wip'])
+
+            if 'first_job_processing_times' in next_state and max(
+                    next_state['first_job_processing_times']) > max_first_job_processing_times:
+                max_first_job_processing_times = max(next_state['first_job_processing_times'])
+
+            if 'slack' in next_state and next_state['slack'] > max_slack:
+                max_slack = next_state['slack']
+            if 'slack' in next_state and next_state['slack'] < min_slack:
+                min_slack = next_state['slack']
+
             obs = next_state
+
         last_job_count.append(len(gym_env.simpy_env.jobs))
         last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
         actions_distribution.append(gym_env.action_stat)
@@ -154,6 +180,12 @@ def run_prog(*seeds: int):
 
     print(f"Last Job Count: {last_job_count}")
     print(f"Last Finished Job Count: {last_finished_job_count}")
+
+    print(f"Max WIP: {max_wip}")
+    print(f"Max First Job Processing Times: {max_first_job_processing_times}")
+    print(f"Max Slack: {max_slack}")
+    print(f"Min Slack: {min_slack}")
+
     gym_env.close()
 
     # TODO to test
@@ -161,7 +193,11 @@ def run_prog(*seeds: int):
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
 
-_, _, sim_system_collection = run_prog(*seeds[:20])
+welch_simulations_number = int(welch_params['welch']['simulations_number'])
+stat_simulations_number = int(welch_params['rl_system']['stat_simulations_number'])
+
+
+_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number])
 system_runs_arr = np.array([run.th_stats for run in sim_system_collection])
 plt.plot(system_runs_arr.T)
 plt.show()
@@ -169,8 +205,8 @@ plt.show()
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
-seed_count = rl_params['episode_count'] + 21
-actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[10:seed_count])
+seed_count = welch_simulations_number + stat_simulations_number
+actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count])
 
 title = ''
 if rl_params['model'] == 'A2C':

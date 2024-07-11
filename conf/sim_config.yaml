@@ -40,9 +40,8 @@ mean_delay_in_system_timestep: 30  # da valutare
 reward:
   reward_sampling: True
   reward_time_step: 1  # da valutare
-  delivery_half_window: 5  # da valutare
-  daily_penalty: 20  # da valutare
-  award_delivery: 100  # da valutare
-  wip_penalty: 2  # se la coda aumenta di 1, il reward diminuisce
-  wip_award: 4  # da valutare
-
+  delivery_half_window: 10  # da valutare
+  daily_penalty: 2  # da valutare
+  award_delivery: 400  # da valutare
+  wip_penalty: 0.15  # se la coda aumenta di 1, il reward diminuisce
+  wip_award: 0.25  # da valutare

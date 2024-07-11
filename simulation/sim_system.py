@@ -84,18 +84,22 @@ class SimSystem:
     def finished_jobs(self) -> int:
         return sum(job.done for job in self.jobs)
 
+    def get_wip(self) -> List[int]:
+        wip = []
+        for i in range(6):
+            machine_wip = 0
+            for j, machine in enumerate(self.machines):
+                if j <= i:
+                    for job_request in machine.queue:
+                        machine_wip += job_request.job.processing_times[i]  # TODO to check
+            wip.append(machine_wip)
+
+        return wip
+
     def wip_sampler(self) -> Generator[simpy.Event, None, None]:
         while True:
             yield self.env.timeout(float(config['wip_timestep']))
-
-            wip = []
-            for i in range(6):
-                machine_wip = 0
-                for j, machine in enumerate(self.machines):
-                    if j <= i:
-                        for job_request in machine.queue:
-                            machine_wip += job_request.job.processing_times[i]  # TODO to check
-                wip.append(machine_wip)
+            wip = self.get_wip()
             self.wip_stats.append(tuple(wip))
 
     def throughput_sampler(self) -> Generator[simpy.Event, None, None]:
@@ -155,9 +159,12 @@ class SimSystem:
         for i, machine in enumerate(self.machines):
             queue_length_difference = len(machine.queue) - self.last_queue_lengths[i]
             if queue_length_difference < 0:  # The queue has decreased
-                reward += wip_award  # Increase the reward
+                reward += (wip_award * queue_length_difference)  # Increase the reward
             elif queue_length_difference > 0:  # The queue has increased
-                reward -= wip_penalty  # Decrease the reward
+                reward -= (wip_penalty * queue_length_difference) # Decrease the reward
+
+        if all(value == 0 for value in self.get_wip()) and len(self.psp) > 0:
+            reward -= 10  # TODO da valutare, per evitare che il sistema blocchi i processi e non consegni più
 
         # Update the last queue lengths for the next timestep
         self.last_queue_lengths = [len(machine.queue) for machine in self.machines]

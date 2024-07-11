@@ -184,18 +184,23 @@ def reward_table(sample_mean: float, sample_variance: float, half_interval: floa
     print(tabulate(table, headers, tablefmt="pretty"))
 
 
-def actions_table(action_0_sample_mean: float, action_0_sample_variance: float, action_0_half_interval: float,
-                    action_1_sample_mean: float, action_1_sample_variance: float, action_1_half_interval: float) -> None:
-    # Calculate the confidence interval
-    action_0_conf_interval_min = action_0_sample_mean - action_0_half_interval
-    action_0_conf_interval_max = action_0_sample_mean + action_0_half_interval
+def plot_action_stat(percentage_ones):
+    # Crea una nuova figura
+    plt.figure()
 
-    # Calculate the relative error
-    if action_0_sample_mean != 0:
-        action_0_relative_error = 100 * action_0_half_interval / action_0_sample_mean
-    else:
-        action_0_relative_error = "Undefined"
+    # Crea un grafico a barre di percentage_ones
+    plt.bar(range(len(percentage_ones)), [i * 100 for i in percentage_ones])
 
+    # Aggiungi titolo e etichette agli assi
+    plt.title('Percentuale di 1 per episodio')
+    plt.xlabel('Episodio')
+    plt.ylabel('Percentuale di 1')
+
+    # Mostra il grafico
+    plt.show()
+
+
+def actions_table(action_1_sample_mean: float, action_1_sample_variance: float, action_1_half_interval: float) -> None:
     # Calculate the confidence interval
     action_1_conf_interval_min = action_1_sample_mean - action_1_half_interval
     action_1_conf_interval_max = action_1_sample_mean + action_1_half_interval
@@ -208,13 +213,7 @@ def actions_table(action_0_sample_mean: float, action_0_sample_variance: float, 
 
 
     headers = ["-", "Mean", "Variance", "Half Interval", "Confidence Interval", "Relative Error"]
-    table = [["Action 0",
-              f"{action_0_sample_mean:.2f}",
-              f"{action_0_sample_variance:.2f}",
-              f"{action_0_half_interval:.2f}",
-              f"{action_0_conf_interval_min:.2f}, {action_0_conf_interval_max:.2f}",
-              f"{action_0_relative_error if action_0_relative_error == 'Undefined' else f'{action_0_relative_error:.2f}%'}"],
-             ["Action 1",
+    table = [["Action 1",
               f"{action_1_sample_mean:.2f}",
               f"{action_1_sample_variance:.2f}",
               f"{action_1_half_interval:.2f}",

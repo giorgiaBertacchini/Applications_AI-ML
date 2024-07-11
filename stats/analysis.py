@@ -6,7 +6,8 @@ import statistics
 import yaml
 
 from simulation.sim_system import SimSystem
-from stats.analysis_view import wip_table, wip_plt, mts_table, mds_table, throughput_table, system_wip_table, reward_table, actions_table
+from stats.analysis_view import (wip_table, wip_plt, mts_table, mds_table, throughput_table, system_wip_table,
+                                 reward_table, plot_action_stat, actions_table)
 
 with open('../conf/sim_config.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -100,31 +101,41 @@ def analyze_reward(runs: Sequence[SimSystem], warmup_period: int, alpha: float =
     return sample_mean, sample_variance, half_interval
 
 
-def analyze_action_stat(action_stat: Sequence[Sequence[int, int]], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float, float, float, float]:
+def analyze_action_stat(action_stat: Sequence[Sequence[int]], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:
     n = len(action_stat)
-    sample = [np.mean(action_stat[warmup_period:][0])]
-    sample_mean_0 = np.mean(sample)
-    sample_variance_0 = statistics.variance(sample, xbar=sample_mean_0)
-    t = t_student_critical_value(alpha=alpha, n=n)
-    half_interval_0 = t * np.sqrt(sample_variance_0 / n)
+    action_stat_welch = [actions_episode[warmup_period:] for actions_episode in action_stat]
 
-    sample = [np.mean(action_stat[warmup_period:][1])]
+    percentage_ones = []
+
+    # Per ogni episodio
+    for episode_actions in action_stat_welch:
+        # Calcola la percentuale di 1 rispetto agli 0 e aggiungi il valore alla lista
+        count_zeros = episode_actions.count(0)
+        count_ones = episode_actions.count(1)
+        if count_zeros != 0:
+            percentage = (count_ones / (count_zeros + count_ones))
+        else:
+            percentage = 1 if count_ones > 0 else 0
+        percentage_ones.append(percentage)
+
+    plot_action_stat(percentage_ones)
+
+    sample = percentage_ones
     sample_mean_1 = np.mean(sample)
     sample_variance_1 = statistics.variance(sample, xbar=sample_mean_1)
     t = t_student_critical_value(alpha=alpha, n=n)
     half_interval_1 = t * np.sqrt(sample_variance_1 / n)
-    return sample_mean_0, sample_variance_0, half_interval_0, sample_mean_1, sample_variance_1, half_interval_1
+
+    return sample_mean_1, sample_variance_1, half_interval_1
 
 
-def action_stat_print(action_stat: Sequence[Sequence[int, int]], warmup_period: int) -> None:
-        alpha = welch_params['analyze_throughput']['alpha']
-        (action_0_sample_mean, action_0_sample_variance, action_0_half_interval, action_1_sample_mean,
-         action_1_sample_variance, action_1_half_interval) = analyze_action_stat(
+def action_stat_print(action_stat: Sequence[Sequence[int]], warmup_period: int) -> None:
+    alpha = welch_params['analyze_throughput']['alpha']
+    (action_1_sample_mean, action_1_sample_variance, action_1_half_interval) = analyze_action_stat(
             action_stat,
             warmup_period=warmup_period,
             alpha=alpha)
-        actions_table(action_0_sample_mean, action_0_sample_variance, action_0_half_interval, action_1_sample_mean,
-         action_1_sample_variance, action_1_half_interval)
+    actions_table(action_1_sample_mean, action_1_sample_variance, action_1_half_interval)
 
 def output_analyze(system_collection: list[SimSystem], warmup_period: int) -> None:
     system_runs_arr = np.array([run.th_stats for run in system_collection])
