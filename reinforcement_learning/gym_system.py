@@ -39,9 +39,6 @@ class GymSystem(gym.Env):
         })
 
     def step(self, action):
-        # Sort the list by slack
-        self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
-
         self.action_stat.append(int(action))
 
         # If I put the job into production
@@ -50,8 +47,8 @@ class GymSystem(gym.Env):
             if len(self.simpy_env.psp) > 0:
                 job = self.simpy_env.psp.pop(0)
                 self.simpy_env.env.process(job.main())
-            else:
-                print("Nessun job da buttare dentro")
+            #else:
+                #print("Nessun job da buttare dentro")
 
         if action == 0 and len(self.simpy_env.psp) == 0:
             self.not_job_to_push_action_0 += 1  # TODO for check
@@ -67,6 +64,9 @@ class GymSystem(gym.Env):
 
         # Calculate the reward
         self.reward = self.simpy_env.get_reward()
+
+        # Sort the list by slack
+        self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
 
         # Take the current observation
         obs = self.get_state()

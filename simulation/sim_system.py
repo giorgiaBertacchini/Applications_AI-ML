@@ -84,7 +84,7 @@ class SimSystem:
     def finished_jobs(self) -> int:
         return sum(job.done for job in self.jobs)
 
-    def get_wip(self) -> List[int]:
+    def get_wip(self) -> List[float]:
         wip = []
         for i in range(6):
             machine_wip = 0
@@ -156,18 +156,32 @@ class SimSystem:
                 # Remove the job from the original list
                 self.reward_time_step_jobs.remove(job)
 
+
+        actual_wip = self.get_wip()
+        for i, machine in enumerate(self.machines):
+            queue_length_difference = actual_wip[i] - self.last_queue_lengths[i]
+            if queue_length_difference < 0:
+                reward += (wip_award * queue_length_difference)
+            elif queue_length_difference > 0:
+                reward -= (wip_penalty * queue_length_difference)
+        '''
         for i, machine in enumerate(self.machines):
             queue_length_difference = len(machine.queue) - self.last_queue_lengths[i]
             if queue_length_difference < 0:  # The queue has decreased
                 reward += (wip_award * queue_length_difference)  # Increase the reward
             elif queue_length_difference > 0:  # The queue has increased
                 reward -= (wip_penalty * queue_length_difference) # Decrease the reward
-
+        '''
         if all(value == 0 for value in self.get_wip()) and len(self.psp) > 0:
             reward -= 10  # TODO da valutare, per evitare che il sistema blocchi i processi e non consegni più
 
         # Update the last queue lengths for the next timestep
-        self.last_queue_lengths = [len(machine.queue) for machine in self.machines]
+        self.last_queue_lengths = actual_wip
+        #self.last_queue_lengths = [len(machine.queue) for machine in self.machines]
+
+        if len(self.psp) > 0:
+            if self.psp[0].dd - self.env.now < 0:  # Il job è già in ritardo
+                reward -= 25 # TODO da valutare
 
         return reward
 

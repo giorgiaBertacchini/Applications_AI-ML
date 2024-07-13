@@ -1,5 +1,5 @@
 
-model: "PPO"  # A2C, DQN, PPO
+model: "A2C"  # A2C, DQN, PPO
 
 time_step_length: 0.65  # da valutare
 

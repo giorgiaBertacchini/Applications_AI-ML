@@ -5,6 +5,7 @@ import simpy
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 from stable_baselines3 import A2C, DQN, PPO
 
@@ -30,6 +31,10 @@ with open('../conf/rl_parameters.yaml', 'r') as file:
 with open('../conf/welch_params.yaml', 'r') as file:
     welch_params = yaml.safe_load(file)
 
+
+def log_scalar(summary_writer, tag, value, step):
+    with summary_writer.as_default():
+        tf.summary.scalar(tag, value, step=step)
 
 def compute_returns(rewards, gamma):
     R = 0
@@ -105,13 +110,13 @@ def run_prog(*seeds: int):
 
     model = None
     if rl_params['model'] == 'A2C':
-        model = A2C("MultiInputPolicy", gym_env, verbose=1)
+        model = A2C("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/A2C")
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
     elif rl_params['model'] == 'DQN':
-        model = DQN("MultiInputPolicy", gym_env, verbose=1)
-        model.learn(total_timesteps=int(rl_params['learning_total_timesteps']), log_interval=4)
+        model = DQN("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/DQN")
+        model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
     elif rl_params['model'] == 'PPO':
-        model = PPO("MultiInputPolicy", gym_env, verbose=1)
+        model = PPO("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/PPO")
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
 
     total_reward_over_episodes: list[float] = []
@@ -129,6 +134,9 @@ def run_prog(*seeds: int):
     min_slack = float('inf')
     max_slack = float('-inf')
 
+    min_reward = float('inf')
+    max_reward = float('-inf')
+
     for e in range(int(rl_params['episode_count'])):  # 10 episodi
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
@@ -136,17 +144,15 @@ def run_prog(*seeds: int):
 
         for i in range(int(rl_params['time_step_count'])):  # 100 time steps
 
-            print(f"Count Jobs: {len(gym_env.simpy_env.jobs)}")
-            print(f"Count finished Jobs: {gym_env.simpy_env.finished_jobs}")
+            #print(f"Count Jobs: {len(gym_env.simpy_env.jobs)}")
+            #print(f"Count finished Jobs: {gym_env.simpy_env.finished_jobs}")
             action, _states = model.predict(obs)
-            if action == 1:
-                print("1")
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
-            print(f"Reward: {reward}")
-            print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
-            print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
+            #print(f"Reward: {reward}")
+            #print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
+            #print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
 
             total_reward += reward
 
@@ -166,6 +172,11 @@ def run_prog(*seeds: int):
             if 'slack' in next_state and next_state['slack'] < min_slack:
                 min_slack = next_state['slack']
 
+            if reward < min_reward:
+                min_reward = reward
+            if reward > max_reward:
+                max_reward = reward
+
             obs = next_state
 
         last_job_count.append(len(gym_env.simpy_env.jobs))
@@ -178,6 +189,11 @@ def run_prog(*seeds: int):
         total_reward_over_episodes.append(total_reward)  # Store the total reward
         sim_system_collection.append(gym_env.simpy_env)
 
+        print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
+        print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
+
+        log_scalar(summary_writer, "Max WIP", max_wip, e)
+
     print(f"Last Job Count: {last_job_count}")
     print(f"Last Finished Job Count: {last_finished_job_count}")
 
@@ -185,6 +201,8 @@ def run_prog(*seeds: int):
     print(f"Max First Job Processing Times: {max_first_job_processing_times}")
     print(f"Max Slack: {max_slack}")
     print(f"Min Slack: {min_slack}")
+    print(f"Min Reward: {min_reward}")
+    print(f"Max Reward: {max_reward}")
 
     gym_env.close()
 
@@ -193,11 +211,14 @@ def run_prog(*seeds: int):
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
 
+log_dir = "./logs/test"
+summary_writer = tf.summary.create_file_writer(log_dir)
+
 welch_simulations_number = int(welch_params['welch']['simulations_number'])
 stat_simulations_number = int(welch_params['rl_system']['stat_simulations_number'])
 
-
-_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number])
+num_seeds = len(seeds)
+_, _, sim_system_collection = run_prog(*seeds[100:100+welch_simulations_number])
 system_runs_arr = np.array([run.th_stats for run in sim_system_collection])
 plt.plot(system_runs_arr.T)
 plt.show()
@@ -205,8 +226,9 @@ plt.show()
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
+output_analyze(sim_system_collection, welch.warmup_period)  # TODO da cancellare
 seed_count = welch_simulations_number + stat_simulations_number
-actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count])
+actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[100+welch_simulations_number:100+seed_count])
 
 title = ''
 if rl_params['model'] == 'A2C':
@@ -218,3 +240,6 @@ elif rl_params['model'] == 'PPO':
 plt_reward_over_episodes(total_reward_over_episodes, title)  # TODo posso togliere
 output_analyze(sim_system_collection, welch.warmup_period)
 action_stat_print(actions_distribution, welch.warmup_period)
+
+
+# tensorboard --logdir=./reinforcement_learning/logs/test/

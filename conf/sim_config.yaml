@@ -42,6 +42,6 @@ reward:
   reward_time_step: 1  # da valutare
   delivery_half_window: 10  # da valutare
   daily_penalty: 2  # da valutare
-  award_delivery: 400  # da valutare
-  wip_penalty: 0.15  # se la coda aumenta di 1, il reward diminuisce
-  wip_award: 0.25  # da valutare
+  award_delivery: 200  # da valutare
+  wip_penalty: 0.05  # se la coda aumenta di 1, il reward diminuisce
+  wip_award: 0.1  # da valutare
