@@ -78,7 +78,7 @@ def new_simpy_env() -> SimSystem:
     )
 
 
-def run_prog(*seeds: int):
+def run_prog(*seeds: int, episode_count: int):
     random.seed(seeds[0])
 
     sim_system = SimSystem(
@@ -140,7 +140,7 @@ def run_prog(*seeds: int):
     min_reward = float('inf')
     max_reward = float('-inf')
 
-    for e in range(int(rl_params['episode_count'])):
+    for e in range(episode_count):
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
         total_reward = 0
@@ -233,14 +233,13 @@ def run_prog(*seeds: int):
     utilization_plt(utilization_rates)
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
+
+
 log_dir = f"./logs/test/{rl_params['model']}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
 summary_writer = tf.summary.create_file_writer(log_dir)
 
-welch_simulations_number = int(welch_params['welch']['simulations_number'])
-stat_simulations_number = int(welch_params['rl_system']['stat_simulations_number'])
-
-num_seeds = len(seeds)
-_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number])
+welch_simulations_number = int(rl_params['episode_welch_count'])
+_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number], welch_simulations_number)
 system_runs_arr = np.array([run.th_stats for run in sim_system_collection])
 plt.plot(system_runs_arr.T)
 plt.show()
@@ -248,8 +247,8 @@ plt.show()
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
-seed_count = welch_simulations_number + int(rl_params['episode_count'])
-actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count])
+seed_count = welch_simulations_number + int(rl_params['episode_count']) + 1
+actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count], seed_count)
 
 title = ''
 if rl_params['model'] == 'A2C':

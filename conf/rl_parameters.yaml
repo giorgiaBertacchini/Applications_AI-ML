@@ -3,10 +3,11 @@ model: "A2C"  # A2C, DQN, PPO
 
 time_step_length: 0.65
 
-time_step_count: 8000  # 18250 da valutare
+time_step_count: 4000  # 18250
 
-#episode_count: 50  # da valutare 1000
+#episode_count: 50  # 1000
 episode_count: 10
+episode_welch_count: 5
 
 episode_length: 9125  # 25 years
 
@@ -16,7 +17,7 @@ gamma: 0.99
 
 
 normalize_state: True
-normalize_reward: False
+normalize_reward: True
 
 normalizing:
   min_wip: 0
@@ -25,5 +26,5 @@ normalizing:
   max_processing_time: 35
   min_slack: -35
   max_slack: 50
-  min_reward: -600
-  max_reward: 300
+  min_reward: -750
+  max_reward: 250
