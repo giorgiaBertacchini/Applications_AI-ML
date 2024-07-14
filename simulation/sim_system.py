@@ -63,6 +63,10 @@ class SimSystem:
         self.reward_time_step_jobs: list[Job] = []
         self.last_queue_lengths: list[int] = [0, 0, 0, 0, 0, 0]
 
+        # To normalize
+        self.max_wip = float('-inf')
+        self.max_first_job_processing_times = float('-inf')
+
         self.env.process(self.run())
 
         if config['throughput_sampling']:
@@ -84,6 +88,18 @@ class SimSystem:
     def finished_jobs(self) -> int:
         return sum(job.done for job in self.jobs)
 
+    @property
+    def correctly_finished_jobs(self) -> int:
+        half_window = config['reward']['delivery_half_window']
+        count = 0
+        for job in self.jobs:
+            if job.done:
+                # Assuming job.env.now stores the delivery time when the job was marked as done
+                # and job.dd is the due date for the job
+                if job.dd - half_window <= job.delivery_time <= job.dd + half_window:
+                    count += 1
+        return count
+
     def get_wip(self) -> List[float]:
         wip = []
         for i in range(6):
@@ -91,7 +107,7 @@ class SimSystem:
             for j, machine in enumerate(self.machines):
                 if j <= i:
                     for job_request in machine.queue:
-                        machine_wip += job_request.job.processing_times[i]  # TODO to check
+                        machine_wip += job_request.job.processing_times[i]
             wip.append(machine_wip)
 
         return wip
@@ -100,6 +116,8 @@ class SimSystem:
         while True:
             yield self.env.timeout(float(config['wip_timestep']))
             wip = self.get_wip()
+            if max(wip) > self.max_wip:
+                self.max_wip = max(wip)
             self.wip_stats.append(tuple(wip))
 
     def throughput_sampler(self) -> Generator[simpy.Event, None, None]:
@@ -137,6 +155,8 @@ class SimSystem:
         award_delivery = config['reward']['award_delivery']
         wip_penalty = config['reward']['wip_penalty']
         wip_award = config['reward']['wip_award']
+        avoid_empty_queue_penalty = config['reward']['avoid_empty_queue_penalty']
+        job_late_penalty = config['reward']['job_late_penalty']
 
         reward: float = 0.0
 
@@ -173,15 +193,16 @@ class SimSystem:
                 reward -= (wip_penalty * queue_length_difference) # Decrease the reward
         '''
         if all(value == 0 for value in self.get_wip()) and len(self.psp) > 0:
-            reward -= 10  # TODO da valutare, per evitare che il sistema blocchi i processi e non consegni più
+            reward -= avoid_empty_queue_penalty  # TODO da valutare, per evitare che il sistema blocchi i processi e non consegni più
 
         # Update the last queue lengths for the next timestep
         self.last_queue_lengths = actual_wip
         #self.last_queue_lengths = [len(machine.queue) for machine in self.machines]
 
         if len(self.psp) > 0:
-            if self.psp[0].dd - self.env.now < 0:  # Il job è già in ritardo
-                reward -= 25 # TODO da valutare
+            if self.psp[0].dd - self.env.now < 0:
+                # If the job to evaluate is already late
+                reward -= job_late_penalty
 
         return reward
 
@@ -225,6 +246,9 @@ class SimSystem:
                 machines=self.machines,
                 dd=self.dd() + self.env.now
             )
+
+            if max(processing_time_list) > self.max_first_job_processing_times:
+                self.max_first_job_processing_times = max(processing_time_list)
 
             if config['reward']['reward_sampling']:
                 self.reward_time_step_jobs.append(job)

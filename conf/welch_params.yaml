@@ -1,8 +1,8 @@
 welch:
-  simulations_number: 40
+  simulations_number: 100
   until: 9125  # 25 years
-  window_size: 15 # 30
-  tol: 0.01  # 0.01
+  window_size: 15
+  tol: 0.01
 
 analyze_throughput:
   alpha: 0.05
@@ -17,9 +17,9 @@ analyze_mds:
   alpha: 0.05
 
 push_system:
-  stat_simulations_number: 100
+  stat_simulations_number: 500
   stat_simulation_until: 9125  # 25 years
 
 rl_system:
-  stat_simulations_number: 100
+  stat_simulations_number: 500
   stat_simulation_until: 9125  # 25 years

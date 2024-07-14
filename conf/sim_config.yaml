@@ -26,22 +26,25 @@ families:
 
 
 throughput_sampling: True
-throughput_timestep: 30  # da valutare
+throughput_timestep: 30  # one month
 
 wip_sampling: True
-wip_timestep: 1  # da valutare
+wip_timestep: 1  # one day
 
 mean_time_in_system_sampling: False
-mean_time_in_system_timestep: 30  # da valutare
+mean_time_in_system_timestep: 30
 
 mean_delay_in_system_sampling: False
-mean_delay_in_system_timestep: 30  # da valutare
+mean_delay_in_system_timestep: 30
 
 reward:
   reward_sampling: True
-  reward_time_step: 1  # da valutare
-  delivery_half_window: 10  # da valutare
-  daily_penalty: 2  # da valutare
-  award_delivery: 200  # da valutare
-  wip_penalty: 0.05  # se la coda aumenta di 1, il reward diminuisce
-  wip_award: 0.1  # da valutare
+  reward_time_step: 1
+  delivery_half_window: 7
+  daily_penalty: 1.5
+  award_delivery: 250
+  wip_penalty: 0.2  # se la coda aumenta di 1, il reward diminuisce
+  wip_award: 0.25
+  avoid_empty_queue_penalty: 10
+  job_late_penalty: 150
+

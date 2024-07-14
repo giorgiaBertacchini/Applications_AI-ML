@@ -59,15 +59,28 @@ def run_push_system(seed: int | None, until: float = 60 * 120) -> PushSystem:
 
 
 def main_push_system(*seeds: int, until) -> Sequence[PushSystem]:
-    return [run_push_system(seed, until=until) for seed in seeds]
+#    return [run_push_system(seed, until=until) for seed in seeds]
+    max_wip = float('-inf')
+    max_first_job_processing_times = float('-inf')
+    i = 0
+    for seed in seeds:
+        print(f"Simulation n. {i}")
+        system = run_push_system(seed, until=until)
+        if system.max_wip > max_wip:
+            max_wip = system.max_wip
+        if system.max_first_job_processing_times > max_first_job_processing_times:
+            max_first_job_processing_times = system.max_first_job_processing_times
+
+    print(f"Max WIP: {max_wip}")
+    print(f"Max first job processing times: {max_first_job_processing_times}")
 
 
 def run_and_statistics(*seeds: int) -> None:
-    print(f"Running {len(seeds)} simulations...")
     welch_simulations_number = int(welch_params['welch']['simulations_number'])
     stat_simulations_number = int(welch_params['push_system']['stat_simulations_number'])
 
     # Run first simulations to find the warmup period
+    print(f"Running {welch_simulations_number} simulations...")
     system_runs = main_push_system(*seeds[:welch_simulations_number], until=welch_params['welch']['until'])
     system_runs_arr = np.array([run.th_stats for run in system_runs])
 
@@ -77,6 +90,7 @@ def run_and_statistics(*seeds: int) -> None:
     welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
     welch.plot()
 
+    print(f"Running {stat_simulations_number} simulations...")
     system_runs = main_push_system(*seeds[welch_simulations_number:(stat_simulations_number + welch_simulations_number)],
                                    until=welch_params['push_system']['stat_simulation_until'])  # TODO 60 * 160
 

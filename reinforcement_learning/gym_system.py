@@ -4,7 +4,6 @@ from gymnasium import spaces
 import random
 import numpy as np
 import yaml
-import matplotlib.pyplot as plt
 
 from simulation.sim_system import SimSystem
 
@@ -38,6 +37,35 @@ class GymSystem(gym.Env):
             #"psp_length": spaces.Discrete(1000000),
         })
 
+    def normalize_state(self, wip, first_job_processing_times, slack):
+        wip_min = rl_config['normalizing']['min_wip']
+        wip_max = rl_config['normalizing']['max_wip']
+        min_processing_time = rl_config['normalizing']['min_processing_time']
+        max_processing_time = rl_config['normalizing']['max_processing_time']
+        min_slack = rl_config['normalizing']['min_slack']
+        max_slack = rl_config['normalizing']['max_slack']
+
+        # Normalize wip
+        normalized_wip = [0 if x < wip_min else 1 if x > wip_max else (x - wip_min) / (wip_max - wip_min) for x in wip]
+
+        # Normalize first_job_processing_times
+        normalized_first_job_processing_times = [
+            0 if x < min_processing_time else 1 if x > max_processing_time else (x - min_processing_time) / (
+                        max_processing_time - min_processing_time) for x in first_job_processing_times
+        ]
+
+        # Normalize slack
+        normalized_slack = [0 if slack[0] < min_slack else 1 if slack[0] > max_slack else (slack[0] - min_slack) / (
+                    max_slack - min_slack)]
+
+        return normalized_wip, normalized_first_job_processing_times, normalized_slack
+
+    def normalize_reward(self, reward):
+        reward_min = rl_config['normalizing']['min_reward']
+        reward_max = rl_config['normalizing']['max_reward']
+
+        return (reward - reward_min) / (reward_max - reward_min)
+
     def step(self, action):
         self.action_stat.append(int(action))
 
@@ -64,6 +92,9 @@ class GymSystem(gym.Env):
 
         # Calculate the reward
         self.reward = self.simpy_env.get_reward()
+
+        if rl_config['normalize_reward']:
+            self.reward = self.normalize_reward(self.reward)
 
         # Sort the list by slack
         self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
@@ -112,24 +143,26 @@ class GymSystem(gym.Env):
             )
 
     def get_state(self):
-        #queue_lengths = np.array([len(machine.queue) for machine in self.simpy_env.machines])
+        def get_raw_state():
+            wip = self.simpy_env.get_wip()
+            if len(self.simpy_env.psp) > 0:
+                first_element = self.simpy_env.psp[0]
+                first_job_processing_times = first_element.processing_times
+                slack = [first_element.dd - self.simpy_env.env.now]
+            else:
+                first_job_processing_times = [0., 0., 0., 0., 0., 0.]
+                slack = [0.]
+            return wip, first_job_processing_times, slack
 
-        if len(self.simpy_env.psp) > 0:
-            first_element = self.simpy_env.psp[0]
+        wip, first_job_processing_times, slack = get_raw_state()
 
-            return {
-                #"queue_lengths": queue_lengths,
-                "wip": np.array(self.simpy_env.get_wip()),
-                "first_job_processing_times": np.array(first_element.processing_times),
-                "slack": np.array([first_element.dd - self.simpy_env.env.now]),
-            #    "psp_length": len(self.simpy_env.psp)
-            }
+        if rl_config['normalize_state']:
+            wip, first_job_processing_times, slack = self.normalize_state(wip, first_job_processing_times, slack)
+
         return {
-            #"queue_lengths": queue_lengths,
-            "wip": np.array(self.simpy_env.get_wip()),
-            "first_job_processing_times": np.array([0., 0., 0., 0., 0., 0.]),
-            "slack": np.array([0.]),
-            #"psp_length": 0
+            "wip": np.array(wip),
+            "first_job_processing_times": np.array(first_job_processing_times),
+            "slack": np.array(slack),
         }
 
     def simpy_env_reset(self, sim_system: SimSystem) -> None:

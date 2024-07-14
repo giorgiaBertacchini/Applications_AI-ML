@@ -26,6 +26,7 @@ class Job:
         self.delays: MutableSequence[float] = []  # TODO: check if it's mutable
         self.real_routing: MutableSequence[tuple[Machine, float]] = []
         self.done: bool = False
+        self.delivery_time: float = 0.0
 
         self.arrival_time: float = self.env.now
 
@@ -65,3 +66,4 @@ class Job:
                     self.real_routing.append((machine, processing_time))
 
         self.done = True
+        self.delivery_time = self.env.now
