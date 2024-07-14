@@ -103,7 +103,7 @@ def run_prog(*seeds: int):
         ),
         f3_processing_time_distribution=lambda: random.gammavariate(
             alpha=float(config['families']['f3']['processing']['alpha']),
-            beta=eval(config['families']['f3']['processing']['beta'])  # eval, because is an expression
+            beta=eval(config['families']['f3']['processing']['beta'])
         ),
         routing=lambda: [random.random() for _ in range(6)],
         dd=lambda: random.uniform(float(config['dd']['min']), float(config['dd']['max']))
@@ -140,12 +140,13 @@ def run_prog(*seeds: int):
     min_reward = float('inf')
     max_reward = float('-inf')
 
-    for e in range(int(rl_params['episode_count'])):  # 10 episodi
+    for e in range(int(rl_params['episode_count'])):
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
         total_reward = 0
+        reward_over_episode: list[float] = []
 
-        for i in range(int(rl_params['time_step_count'])):  # 100 time steps
+        for i in range(int(rl_params['time_step_count'])):
 
             #print(f"Count Jobs: {len(gym_env.simpy_env.jobs)}")
             #print(f"Count finished Jobs: {gym_env.simpy_env.finished_jobs}")
@@ -157,10 +158,11 @@ def run_prog(*seeds: int):
             #print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
             #print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
             log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
+            reward_over_episode.append(reward)
             total_reward += reward
 
             if done or truncated:
-                print(f"Episodio terminato! Reward: {total_reward}; i: {i}")
+                print(f"Episodio terminato! Reward: {reward_over_episode}; i: {i}")
                 break
 
             if 'wip' in next_state and max(next_state['wip']) > max_wip:
@@ -182,6 +184,8 @@ def run_prog(*seeds: int):
 
             obs = next_state
 
+            log_scalar(summary_writer, f"Reward in episode {seeds[e]}", reward, i)
+
         last_job_count.append(len(gym_env.simpy_env.jobs))
         last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
         actions_distribution.append(gym_env.action_stat)
@@ -189,7 +193,6 @@ def run_prog(*seeds: int):
         utilization_rates.append([machine.utilization_rate for machine in
                                   gym_env.simpy_env.machines])  # Append the utilization rates of the machines
 
-        total_reward_over_episodes.append(total_reward)  # Store the total reward
         sim_system_collection.append(gym_env.simpy_env)
 
         #print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
@@ -245,7 +248,7 @@ plt.show()
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
-seed_count = welch_simulations_number + stat_simulations_number
+seed_count = welch_simulations_number + int(rl_params['episode_count'])
 actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count])
 
 title = ''

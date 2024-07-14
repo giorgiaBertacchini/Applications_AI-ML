@@ -6,7 +6,7 @@ time_step_length: 0.65
 time_step_count: 8000  # 18250 da valutare
 
 #episode_count: 50  # da valutare 1000
-episode_count: 25
+episode_count: 10
 
 episode_length: 9125  # 25 years
 
@@ -16,7 +16,7 @@ gamma: 0.99
 
 
 normalize_state: True
-normalize_reward: True
+normalize_reward: False
 
 normalizing:
   min_wip: 0
@@ -26,4 +26,4 @@ normalizing:
   min_slack: -35
   max_slack: 50
   min_reward: -600
-  max_reward: 400
+  max_reward: 300

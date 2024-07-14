@@ -162,6 +162,7 @@ class SimSystem:
 
         for job in self.reward_time_step_jobs.copy():
             if job.done:
+                reward += award_delivery
                 if job.dd - delivery_half_window > self.env.now:
                     # too early
                     reward -= daily_penalty * (job.dd - self.env.now - delivery_half_window)
@@ -169,9 +170,6 @@ class SimSystem:
                 elif job.dd + delivery_half_window < self.env.now:
                     # too late
                     reward -= daily_penalty * (self.env.now - job.dd - delivery_half_window)
-                else:
-                    # correctly delivered
-                    reward += award_delivery
 
                 # Remove the job from the original list
                 self.reward_time_step_jobs.remove(job)

@@ -41,10 +41,10 @@ reward:
   reward_sampling: True
   reward_time_step: 1
   delivery_half_window: 7
-  daily_penalty: 1.5
-  award_delivery: 250
-  wip_penalty: 0.25  # se la coda aumenta di 1, il reward diminuisce
-  wip_award: 0.3
-  avoid_empty_queue_penalty: 10
-  job_late_penalty: 150
+  daily_penalty: 5
+  award_delivery: 100  # 100
+  wip_penalty: 0.5  # se la coda aumenta di 1, il reward diminuisce
+  wip_award: 0.4  # 0.35
+  avoid_empty_queue_penalty: 150
+  job_late_penalty: 0
 
