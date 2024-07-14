@@ -30,11 +30,9 @@ class GymSystem(gym.Env):
         self.action_space = spaces.Discrete(2)  # 2 possible actions, put the order into production or not
 
         self.observation_space = spaces.Dict({
-            #"queue_lengths": spaces.MultiDiscrete([1000] * 6),  # List of integers
             "wip": spaces.Box(low=0, high=1000, shape=(6,), dtype=np.float32),  # List of floats
             "first_job_processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32),  # List of floats
             "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
-            #"psp_length": spaces.Discrete(1000000),
         })
 
     def normalize_state(self, wip, first_job_processing_times, slack):
@@ -71,20 +69,14 @@ class GymSystem(gym.Env):
 
         # If I put the job into production
         if action == 1:
-            #self.action_stat[1] += 1
             if len(self.simpy_env.psp) > 0:
                 job = self.simpy_env.psp.pop(0)
                 self.simpy_env.env.process(job.main())
-            #else:
-                #print("Nessun job da buttare dentro")
 
         if action == 0 and len(self.simpy_env.psp) == 0:
             self.not_job_to_push_action_0 += 1  # TODO for check
         elif action == 1 and len(self.simpy_env.psp) == 0:
             self.not_job_to_push_action_1 += 1  # TODO for check
-
-        #else:
-            #self.action_stat[0] += 1
 
         # Wait for the next step
         time_step = rl_config['time_step_length']
@@ -120,26 +112,21 @@ class GymSystem(gym.Env):
 
     def render(self, mode='human'):
         # View current status
-        queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
 
             print(
                 f"Time: {self.simpy_env.env.now}, "
-                #f"queue_lengths: {queue_lengths}, "
                 f"wip: {self.simpy_env.get_wip()}, "                
                 f"first_job_processing_times: {first_element.processing_times}, "
                 f"slack: {first_element.dd - self.simpy_env.env.now}, "
-                #f"psp_length: {len(self.simpy_env.psp)} "
             )
         else:
             print(
                 f"Time: {self.simpy_env.env.now}, "
-                #f"queue_lengths: {queue_lengths}, "
                 f"wip: {self.simpy_env.get_wip()}, "
                 f"first_job_processing_times: [0., 0., 0., 0., 0., 0.], "
                 f"slack: 0, "
-                #f"psp_length: 0"
             )
 
     def get_state(self):

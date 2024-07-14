@@ -42,9 +42,9 @@ reward:
   reward_time_step: 1
   delivery_half_window: 7
   daily_penalty: 5
-  award_delivery: 100
-  wip_penalty: 3  # if a queue grows, the reward is reduced
-  wip_award: 0.5  # 0.35
+  award_delivery: 125
+  wip_penalty: 25  # if a queue grows, the reward is reduced
+  wip_award: 2
   avoid_empty_queue_penalty: 100
   job_late_penalty: 0
 

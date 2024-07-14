@@ -19,7 +19,3 @@ analyze_mds:
 push_system:
   stat_simulations_number: 800
   stat_simulation_until: 9125  # 25 years
-
-#rl_system:
-  #stat_simulations_number: 20
-  #stat_simulation_until: 9125  # 25 years

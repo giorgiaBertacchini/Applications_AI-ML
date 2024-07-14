@@ -107,9 +107,9 @@ def analyze_action_stat(action_stat: Sequence[Sequence[int]], warmup_period: int
 
     percentage_ones = []
 
-    # Per ogni episodio
+    # For each episode
     for episode_actions in action_stat_welch:
-        # Calcola la percentuale di 1 rispetto agli 0 e aggiungi il valore alla lista
+        # Calculate the percentage of 1 with respect to 0 and add the value to the list
         count_zeros = episode_actions.count(0)
         count_ones = episode_actions.count(1)
         if count_zeros != 0:
@@ -137,10 +137,8 @@ def action_stat_print(action_stat: Sequence[Sequence[int]], warmup_period: int) 
             alpha=alpha)
     actions_table(action_1_sample_mean, action_1_sample_variance, action_1_half_interval)
 
+
 def output_analyze(system_collection: list[SimSystem], warmup_period: int) -> None:
-    system_runs_arr = np.array([run.th_stats for run in system_collection])
-    #welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
-    #welch.plot()
 
     if config['throughput_sampling']:
         alpha = welch_params['analyze_throughput']['alpha']
@@ -203,8 +201,7 @@ def output_analyze(system_collection: list[SimSystem], warmup_period: int) -> No
             max_rewards.append(max_reward)
             print(f"System {system}: Min reward = {min_reward}, Max reward = {max_reward}")
 
-        print(f"Min reward: {min(min_rewards)}, Max reward: {max(max_rewards)}")
-        # TODO cancellare quello sopra
+        #print(f"Min reward: {min(min_rewards)}, Max reward: {max(max_rewards)}")
 
         alpha = welch_params['analyze_mds']['alpha']
 

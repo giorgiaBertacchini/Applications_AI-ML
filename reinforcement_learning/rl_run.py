@@ -147,16 +147,10 @@ def run_prog(*seeds: int, episode_count: int):
         reward_over_episode: list[float] = []
 
         for i in range(int(rl_params['time_step_count'])):
-
-            #print(f"Count Jobs: {len(gym_env.simpy_env.jobs)}")
-            #print(f"Count finished Jobs: {gym_env.simpy_env.finished_jobs}")
             action, _states = model.predict(obs)
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
-            #print(f"Reward: {reward}")
-            #print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
-            #print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
             log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
             reward_over_episode.append(reward)
             total_reward += reward
@@ -191,12 +185,9 @@ def run_prog(*seeds: int, episode_count: int):
         actions_distribution.append(gym_env.action_stat)
 
         utilization_rates.append([machine.utilization_rate for machine in
-                                  gym_env.simpy_env.machines])  # Append the utilization rates of the machines
+                                  gym_env.simpy_env.machines])
 
         sim_system_collection.append(gym_env.simpy_env)
-
-        #print(f"gym_env.action_stat: {gym_env.action_stat.count(0)}, {gym_env.action_stat.count(1)}")
-        #print(f"Not job to push: {gym_env.not_job_to_push_action_0}, {gym_env.not_job_to_push_action_1}")
 
         log_scalar(summary_writer, f"Job Count {seeds[e]}", len(gym_env.simpy_env.jobs), e)
         log_scalar(summary_writer, f"Finished Job Count {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
@@ -217,29 +208,17 @@ def run_prog(*seeds: int, episode_count: int):
         log_scalar(summary_writer, f"Min Reward", float(min_reward), 0)
         log_scalar(summary_writer, f"Max Reward", float(max_reward), 0)
 
-    #print(f"Last Job Count: {last_job_count}")
-    #print(f"Last Finished Job Count: {last_finished_job_count}")
-
-    #print(f"Max WIP: {max_wip}")
-    #print(f"Max First Job Processing Times: {max_first_job_processing_times}")
-    #print(f"Max Slack: {max_slack}")
-    #print(f"Min Slack: {min_slack}")
-    #print(f"Min Reward: {min_reward}")
-    #print(f"Max Reward: {max_reward}")
-
     gym_env.close()
 
-    # TODO to test
     utilization_plt(utilization_rates)
     return actions_distribution, total_reward_over_episodes, sim_system_collection
-
 
 
 log_dir = f"./logs/test/{rl_params['model']}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
 summary_writer = tf.summary.create_file_writer(log_dir)
 
 welch_simulations_number = int(rl_params['episode_welch_count'])
-_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number], welch_simulations_number)
+_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number], episode_count=welch_simulations_number)
 system_runs_arr = np.array([run.th_stats for run in sim_system_collection])
 plt.plot(system_runs_arr.T)
 plt.show()
@@ -247,8 +226,9 @@ plt.show()
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
-seed_count = welch_simulations_number + int(rl_params['episode_count']) + 1
-actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count], seed_count)
+seed_count = welch_simulations_number + int(rl_params['episode_count'])
+actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count],
+                                                                                   episode_count=int(rl_params['episode_count']))
 
 title = ''
 if rl_params['model'] == 'A2C':
@@ -257,7 +237,7 @@ elif rl_params['model'] == 'DQN':
     title = 'Deep Q-Learning (DQN)'
 elif rl_params['model'] == 'PPO':
     title = 'Proximal Policy Optimization (PPO)'
-plt_reward_over_episodes(total_reward_over_episodes, title)  # TODo posso togliere
+plt_reward_over_episodes(total_reward_over_episodes, title)
 output_analyze(sim_system_collection, welch.warmup_period)
 action_stat_print(actions_distribution, welch.warmup_period)
 

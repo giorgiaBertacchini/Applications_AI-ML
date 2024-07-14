@@ -182,30 +182,21 @@ class SimSystem:
                 reward += (wip_award * queue_length_difference)
             elif queue_length_difference > 0:
                 reward -= (wip_penalty * queue_length_difference)
-        '''
-        for i, machine in enumerate(self.machines):
-            queue_length_difference = len(machine.queue) - self.last_queue_lengths[i]
-            if queue_length_difference < 0:  # The queue has decreased
-                reward += (wip_award * queue_length_difference)  # Increase the reward
-            elif queue_length_difference > 0:  # The queue has increased
-                reward -= (wip_penalty * queue_length_difference) # Decrease the reward
-        '''
+
         if all(value == 0 for value in self.get_wip()) and len(self.psp) > 0:
-            reward -= avoid_empty_queue_penalty  # TODO da valutare, per evitare che il sistema blocchi i processi e non consegni più
+            reward -= avoid_empty_queue_penalty  # to avoid empty queues
 
         # Update the last queue lengths for the next timestep
         self.last_queue_lengths = actual_wip
-        #self.last_queue_lengths = [len(machine.queue) for machine in self.machines]
 
         if len(self.psp) > 0:
             if self.psp[0].dd - self.env.now < 0:
                 # If the job to evaluate is already late
                 self.get_wip()
-                #reward -= job_late_penalty
                 processing_times = self.psp[0].processing_times
                 wip_values = self.get_wip()
 
-                # Somma i valori di processing_times e wip_values a pari indici dove processing_times > 0
+                # Sum the values of processing_times and wip_values at the same index where processing_times > 0
                 summed_values = [processing_time + wip_value if processing_time > 0 else wip_value
                                  for processing_time, wip_value in zip(processing_times, wip_values)]
 
