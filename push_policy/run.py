@@ -64,6 +64,7 @@ def main_push_system(*seeds: int, until) -> Sequence[PushSystem]:
     max_first_job_processing_times = float('-inf')
     i = 0
     for seed in seeds:
+        i += 1
         print(f"Simulation n. {i}")
         system = run_push_system(seed, until=until)
         if system.max_wip > max_wip:

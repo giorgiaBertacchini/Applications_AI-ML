@@ -10,7 +10,7 @@ episode_count: 25
 
 episode_length: 9125  # 25 years
 
-learning_total_timesteps: 25000
+learning_total_timesteps: 36000
 
 gamma: 0.99
 
@@ -20,10 +20,10 @@ normalize_reward: True
 
 normalizing:
   min_wip: 0
-  max_wip: 200
+  max_wip: 150
   min_processing_time: 0
-  max_processing_time: 40
+  max_processing_time: 35
   min_slack: -35
-  max_slack: 55
+  max_slack: 50
   min_reward: -600
   max_reward: 400

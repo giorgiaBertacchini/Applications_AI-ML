@@ -202,7 +202,16 @@ class SimSystem:
         if len(self.psp) > 0:
             if self.psp[0].dd - self.env.now < 0:
                 # If the job to evaluate is already late
-                reward -= job_late_penalty
+                self.get_wip()
+                #reward -= job_late_penalty
+                processing_times = self.psp[0].processing_times
+                wip_values = self.get_wip()
+
+                # Somma i valori di processing_times e wip_values a pari indici dove processing_times > 0
+                summed_values = [processing_time + wip_value if processing_time > 0 else wip_value
+                                 for processing_time, wip_value in zip(processing_times, wip_values)]
+
+                reward -= ((-(self.psp[0].dd - self.env.now) + sum(summed_values)) * daily_penalty)
 
         return reward
 
