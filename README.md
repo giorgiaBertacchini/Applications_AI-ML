@@ -12,4 +12,4 @@ To create the ml models the `stable_baseline3` library is used. In `/reinforceme
 - the `gym_system.py` that implement a `gymnasium` system which relies on the simpy system and defines the observation space and the action space. In particular, it defines the step function and the reset function.
 - the `rl_run.py` file runs the episodes where the reinforcement learning model learns at each time step if to push or not the more urgent job.
 
-To change the configuration, see the `/conf` folder.
+To change the configuration, see the `/conf` folder: where there are the duration of simulations, the number of simulation, the time of learning, some time steps, the rl model ... and some switches to turn on/off. 
