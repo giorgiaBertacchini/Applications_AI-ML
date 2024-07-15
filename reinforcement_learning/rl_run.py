@@ -113,13 +113,22 @@ def run_prog(*seeds: int, episode_count: int):
 
     model = None
     if rl_params['model'] == 'A2C':
-        model = A2C("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        if rl_params['tensorflow_enabled']:
+            model = A2C("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        else:
+            model = A2C("MultiInputPolicy", gym_env, verbose=1)
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
     elif rl_params['model'] == 'DQN':
-        model = DQN("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        if rl_params['tensorflow_enabled']:
+            model = DQN("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        else:
+            model = DQN("MultiInputPolicy", gym_env, verbose=1)
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
     elif rl_params['model'] == 'PPO':
-        model = PPO("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        if rl_params['tensorflow_enabled']:
+            model = PPO("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+        else:
+            model = PPO("MultiInputPolicy", gym_env, verbose=1)
         model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
 
     total_reward_over_episodes: list[float] = []
@@ -151,7 +160,8 @@ def run_prog(*seeds: int, episode_count: int):
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
-            log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
+            if rl_params['tensorflow_enabled']:
+                log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
             reward_over_episode.append(reward)
             total_reward += reward
 
@@ -178,7 +188,8 @@ def run_prog(*seeds: int, episode_count: int):
 
             obs = next_state
 
-            log_scalar(summary_writer, f"Reward in episode {seeds[e]}", reward, i)
+            if rl_params['tensorflow_enabled']:
+                log_scalar(summary_writer, f"Reward in episode {seeds[e]}", reward, i)
 
         last_job_count.append(len(gym_env.simpy_env.jobs))
         last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
@@ -188,25 +199,26 @@ def run_prog(*seeds: int, episode_count: int):
                                   gym_env.simpy_env.machines])
 
         sim_system_collection.append(gym_env.simpy_env)
+        if rl_params['tensorflow_enabled']:
+            log_scalar(summary_writer, f"Job Count {seeds[e]}", len(gym_env.simpy_env.jobs), e)
+            log_scalar(summary_writer, f"Finished Job Count {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
 
-        log_scalar(summary_writer, f"Job Count {seeds[e]}", len(gym_env.simpy_env.jobs), e)
-        log_scalar(summary_writer, f"Finished Job Count {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
+            log_scalar(summary_writer, f"gym_env.action_stat {seeds[e]}", gym_env.action_stat.count(1), e)
+            log_scalar(summary_writer, f"Not job to push - 0 {seeds[e]}", gym_env.not_job_to_push_action_0, e)
+            log_scalar(summary_writer, f"Not job to push - 1 {seeds[e]}", gym_env.not_job_to_push_action_1, e)
+            log_scalar(summary_writer, f"Correctly delivered {seeds[e]}", gym_env.simpy_env.correctly_finished_jobs, e)
+            log_scalar(summary_writer, f"Tot delivered {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
 
-        log_scalar(summary_writer, f"gym_env.action_stat {seeds[e]}", gym_env.action_stat.count(1), e)
-        log_scalar(summary_writer, f"Not job to push - 0 {seeds[e]}", gym_env.not_job_to_push_action_0, e)
-        log_scalar(summary_writer, f"Not job to push - 1 {seeds[e]}", gym_env.not_job_to_push_action_1, e)
-        log_scalar(summary_writer, f"Correctly delivered {seeds[e]}", gym_env.simpy_env.correctly_finished_jobs, e)
-        log_scalar(summary_writer, f"Tot delivered {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
+    if rl_params['tensorflow_enabled']:
+        if not rl_params['normalize_state']:
+            log_scalar(summary_writer, f"Max WIP", max_wip, 0)
+            log_scalar(summary_writer, f"Max First Job Processing Times", max_first_job_processing_times, 0)
+            log_scalar(summary_writer, f"Max Slack", float(max_slack), 0)
+            log_scalar(summary_writer, f"Min Slack", float(min_slack), 0)
 
-    if not rl_params['normalize_state']:
-        log_scalar(summary_writer, f"Max WIP", max_wip, 0)
-        log_scalar(summary_writer, f"Max First Job Processing Times", max_first_job_processing_times, 0)
-        log_scalar(summary_writer, f"Max Slack", float(max_slack), 0)
-        log_scalar(summary_writer, f"Min Slack", float(min_slack), 0)
-
-    if not rl_params['normalize_reward']:
-        log_scalar(summary_writer, f"Min Reward", float(min_reward), 0)
-        log_scalar(summary_writer, f"Max Reward", float(max_reward), 0)
+        if not rl_params['normalize_reward']:
+            log_scalar(summary_writer, f"Min Reward", float(min_reward), 0)
+            log_scalar(summary_writer, f"Max Reward", float(max_reward), 0)
 
     gym_env.close()
 
@@ -214,8 +226,9 @@ def run_prog(*seeds: int, episode_count: int):
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
 
-log_dir = f"./logs/test/{rl_params['model']}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
-summary_writer = tf.summary.create_file_writer(log_dir)
+if rl_params['tensorflow_enabled']:
+    log_dir = f"./logs/test/{rl_params['model']}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+    summary_writer = tf.summary.create_file_writer(log_dir)
 
 welch_simulations_number = int(rl_params['episode_welch_count'])
 _, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number], episode_count=welch_simulations_number)

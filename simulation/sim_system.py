@@ -200,7 +200,7 @@ class SimSystem:
                 summed_values = [processing_time + wip_value if processing_time > 0 else wip_value
                                  for processing_time, wip_value in zip(processing_times, wip_values)]
 
-                reward -= ((-(self.psp[0].dd - self.env.now) + sum(summed_values)) * daily_penalty)
+                reward -= ((-(self.psp[0].dd - self.env.now) + (sum(summed_values)) * daily_penalty) + job_late_penalty)
 
         return reward
 
