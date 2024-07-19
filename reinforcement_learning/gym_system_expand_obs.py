@@ -22,9 +22,6 @@ class GymExpandedSystem(gym.Env):
         self.simpy_env = sim_system
 
         self.reward = 0
-        #self.psp: list[Job] = []  # “pre-shop pool” (PSP)
-
-        self.rewards_over_time = []
 
         # Definire lo spazio delle azioni e delle osservazioni
         self.action_space = spaces.Discrete(2)  # Esempio: 2 azioni possibili, metti in produzione o no l'ordine
@@ -37,52 +34,43 @@ class GymExpandedSystem(gym.Env):
         })
 
     def step(self, action):
-        # TODO riordinare la lista
-        self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
-
-        # Eseguire l'azione, butto dentro il job
+        # If I put the job into production
         if action == 1:
             if len(self.simpy_env.psp) > 0:
                 job = self.simpy_env.psp.pop(0)
                 self.simpy_env.env.process(job.main())
-            else:
-                print("Nessun job da buttare dentro")
 
         # Wait for the next step
         time_step = rl_config['time_step_length']
         self.simpy_env.env.run(until=self.simpy_env.env.now + time_step)
 
         # Calculate the reward
-        self.simpy_env.get_reward()
+        self.reward = self.simpy_env.get_reward()
 
-        # Calcolare l'osservazione
+        # Sort the list by slack
+        self.simpy_env.psp.sort(key=lambda job: job.dd - self.simpy_env.env.now)
+
+        # Take the current observation
         obs = self.get_state()
 
-        # Calcolare se l'episodio è finito
-        done = self.simpy_env.env.now >= 10005
-
-        #if done:
-        #    self.plot_rewards_over_time()
+        # Calculate if the episode is finished
+        done = self.simpy_env.env.now >= rl_config['episode_length']
 
         return obs, self.reward, done, False, {}
 
     def reset(self, seed=None, options=None):
-        super().reset(seed=seed)  # TODO va bene?
+        super().reset(seed=seed)
 
         random.seed(seed)
         self.reward = 0
-        self.rewards_over_time = []
 
         return self.get_state(), {}
 
     def render(self, mode='human'):
-        # Visualizza lo stato attuale
+        # View current status
         queue_lengths = [len(machine.queue) for machine in self.simpy_env.machines]
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
-
-            processing_times = np.array(first_element.processing_times)
-            padded_processing_times = np.pad(processing_times, (0, 6 - len(processing_times)))
 
             print(
                 f"Time: {self.simpy_env.env.now}, "

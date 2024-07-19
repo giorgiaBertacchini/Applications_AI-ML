@@ -2,7 +2,7 @@ import simpy
 import yaml
 import statistics
 
-from typing import List  # TODO va bene?
+from typing import List
 from collections.abc import Callable, Generator
 
 from simulation.machine import Machine
@@ -132,10 +132,10 @@ class SimSystem:
             yield self.env.timeout(float(config['mean_time_in_system_timestep']))
 
             mean_mts = statistics.mean(
-                sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)  # TODO si può migliorare
+                sum(job.delays) + sum(p for _, p in job.real_routing) for job in self.jobs)
             self.mts_stats.append(mean_mts)
 
-    def mean_delay_in_system_sampler(self) -> Generator[simpy.Event, None, None]:  # devo fare la media dei tempi di attesa in coda e di servizio
+    def mean_delay_in_system_sampler(self) -> Generator[simpy.Event, None, None]:
         while True:
             yield self.env.timeout(float(config['mean_delay_in_system_timestep']))
             total_delay = []

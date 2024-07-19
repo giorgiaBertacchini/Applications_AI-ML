@@ -23,7 +23,7 @@ class Job:
         self.machines = machines
         self.dd = dd
 
-        self.delays: MutableSequence[float] = []  # TODO: check if it's mutable
+        self.delays: MutableSequence[float] = []
         self.real_routing: MutableSequence[tuple[Machine, float]] = []
         self.done: bool = False
         self.delivery_time: float = 0.0

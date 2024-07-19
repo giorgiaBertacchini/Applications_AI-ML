@@ -69,7 +69,7 @@ def analyze_system_wip(runs: Sequence[SimSystem], warmup_period: int, alpha: flo
     return system_wip_sample_mean, system_wip_sample_variance, half_interval
 
 
-def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:  # TODO to CHECK
+def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) -> tuple[float, float, float]:
     n = len(runs)
 
     sample = [np.mean(run.mds_stats[warmup_period:]) for run in runs]
@@ -81,7 +81,7 @@ def analyze_mean_delay_in_system(runs: Sequence[SimSystem], warmup_period: int, 
 
 
 def analyze_mean_time_in_system(runs: Sequence[SimSystem], warmup_period: int, alpha: float = 0.05) \
-        -> tuple[float, float, float]:  # TODO to CHECK
+        -> tuple[float, float, float]:
     n = len(runs)
     sample = [np.mean(run.mts_stats[warmup_period:]) for run in runs]
     time_in_system_sample_mean = np.mean(sample)

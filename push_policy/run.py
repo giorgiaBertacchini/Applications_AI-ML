@@ -92,7 +92,7 @@ def run_and_statistics(*seeds: int) -> None:
 
     print(f"Running {stat_simulations_number} simulations...")
     system_runs = main_push_system(*seeds[welch_simulations_number:(stat_simulations_number + welch_simulations_number)],
-                                   until=welch_params['push_system']['stat_simulation_until'])  # TODO 60 * 160
+                                   until=welch_params['push_system']['stat_simulation_until'])
 
     output_analyze(list(system_runs), welch.warmup_period)
 

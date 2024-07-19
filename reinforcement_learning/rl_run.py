@@ -110,6 +110,7 @@ def run_prog(*seeds: int, episode_count: int):
     )
 
     gym_env = GymSystem(sim_system)
+    # gym_env = GymExpandedSystem(sim_system)
 
     model = None
     if rl_params['model'] == 'A2C':
@@ -138,7 +139,7 @@ def run_prog(*seeds: int, episode_count: int):
     last_finished_job_count = []
     utilization_rates = []
 
-    # TODO per normalizzare:
+    # To normalize
     max_wip = float('-inf')
 
     max_first_job_processing_times = float('-inf')
@@ -166,7 +167,7 @@ def run_prog(*seeds: int, episode_count: int):
             total_reward += reward
 
             if done or truncated:
-                print(f"Episodio terminato! Reward: {reward_over_episode}; i: {i}")
+                print(f"Episode terminated! Reward: {reward_over_episode}; i: {i}")
                 break
 
             if 'wip' in next_state and max(next_state['wip']) > max_wip:

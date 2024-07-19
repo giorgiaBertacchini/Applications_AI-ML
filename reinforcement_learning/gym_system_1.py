@@ -33,7 +33,7 @@ class GymSystem(gym.Env):
         self.observation_space = spaces.Dict({
             "wip": spaces.Box(low=0, high=1000, shape=(6,), dtype=np.float32),  # List of floats
             "first_job_processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32),  # List of floats
-            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
+            "slack": spaces.Discrete(100000)  # Float
         })
 
     def normalize_state(self, wip, first_job_processing_times, slack):
@@ -54,7 +54,7 @@ class GymSystem(gym.Env):
         ]
 
         # Normalize slack
-        normalized_slack = [0 if slack[0] < min_slack else 1 if slack[0] > max_slack else (slack[0] - min_slack) / (
+        normalized_slack = [0 if slack < min_slack else 1 if slack > max_slack else (slack - min_slack) / (
                     max_slack - min_slack)]
 
         return normalized_wip, normalized_first_job_processing_times, normalized_slack
@@ -127,7 +127,7 @@ class GymSystem(gym.Env):
                 f"Time: {self.simpy_env.env.now}, "
                 f"wip: {self.simpy_env.get_wip()}, "
                 f"first_job_processing_times: [0., 0., 0., 0., 0., 0.], "
-                f"slack: 0, "
+                f"slack: 0"
             )
 
     def get_state(self):
@@ -135,10 +135,10 @@ class GymSystem(gym.Env):
             if len(self.simpy_env.psp) > 0:
                 first_element = self.simpy_env.psp[0]
                 first_job_processing_times = first_element.processing_times
-                slack = [first_element.dd - self.simpy_env.env.now]
+                slack = first_element.dd - self.simpy_env.env.now
             else:
                 first_job_processing_times = [0., 0., 0., 0., 0., 0.]
-                slack = [0.]
+                slack = 0
             return self.simpy_env.get_wip(), first_job_processing_times, slack
 
         wip, first_job_processing_times, slack = get_raw_state()
@@ -149,7 +149,7 @@ class GymSystem(gym.Env):
         return {
             "wip": np.array(wip),
             "first_job_processing_times": np.array(first_job_processing_times),
-            "slack": np.array(slack),
+            "slack": slack,
         }
 
     def simpy_env_reset(self, sim_system: SimSystem) -> None:

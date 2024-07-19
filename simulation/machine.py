@@ -61,7 +61,7 @@ class Machine(simpy.Resource):
         status = int(self.count == 1 or len(self.queue) > 0)
 
         # If the server utilization has not changed, do not update the list
-        if self._ut and self._ut[-1][1] == status:  # TODO va bene? è del prof
+        if self._ut and self._ut[-1][1] == status:
             return
 
         self._ut.append((self.env.now, status))
