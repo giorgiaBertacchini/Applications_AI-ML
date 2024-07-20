@@ -30,11 +30,19 @@ class GymSystem(gym.Env):
         # Define the space of actions and observations
         self.action_space = spaces.Discrete(2)  # 2 possible actions, put the order into production or not
 
-        self.observation_space = spaces.Dict({
-            "wip": spaces.Box(low=0, high=1000, shape=(6,), dtype=np.float32),  # List of floats
-            "first_job_processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32),  # List of floats
-            "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
-        })
+        if rl_config['normalize_state']:
+            self.observation_space = spaces.Dict({
+                "wip": spaces.Box(low=0.0, high=1.0, shape=(6,), dtype=np.float32),  # List of floats
+                "first_job_processing_times": spaces.Box(low=0.0, high=1.0, shape=(6,), dtype=np.float32),  # List of floats
+                "slack": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),  # Float
+            })
+        else:
+            self.observation_space = spaces.Dict({
+                "wip": spaces.Box(low=0, high=1000, shape=(6,), dtype=np.float32),  # List of floats
+                "first_job_processing_times": spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32),
+                # List of floats
+                "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
+            })
 
     def normalize_state(self, wip, first_job_processing_times, slack):
         wip_min = rl_config['normalizing']['min_wip']

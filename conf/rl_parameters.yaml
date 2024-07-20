@@ -1,5 +1,5 @@
 
-model: "DQN"  # A2C, DQN, PPO
+model: "PPO"  # A2C, DQN, PPO
 
 time_step_length: 0.65
 
@@ -12,7 +12,7 @@ episode_length: 9125  # 25 years
 
 learning_total_timesteps: 42000  # 75 years
 
-gamma: 0.10
+gamma: 0.55
 
 
 normalize_state: True
@@ -29,4 +29,4 @@ normalizing:
   max_reward: 250
 
 
-tensorflow_flag: True
+tensorflow_flag: False
