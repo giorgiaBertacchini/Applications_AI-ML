@@ -33,19 +33,15 @@ with open('../conf/rl_parameters.yaml', 'r') as file:
 with open('../conf/welch_params.yaml', 'r') as file:
     welch_params = yaml.safe_load(file)
 
+tensorflow_enabled = rl_params['tensorflow_flag']
+model_type = rl_params['model']
+learning_total_time_steps = int(rl_params['learning_total_timesteps'])
+gamma_value = float(rl_params['gamma'])
 
-def log_scalar(summary_writer, tag, value, step):
-    with summary_writer.as_default():
+
+def log_scalar(summ_writer, tag, value, step):
+    with summ_writer.as_default():
         tf.summary.scalar(tag, value, step=step)
-
-
-def compute_returns(rewards, gamma):
-    R = 0
-    returns = []
-    for r in reversed(rewards):
-        R = r + gamma * R  # Calculate discounted return
-        returns.insert(0, R)  # Insert at the beginning of the list
-    return returns
 
 
 def new_simpy_env() -> SimSystem:
@@ -78,59 +74,30 @@ def new_simpy_env() -> SimSystem:
     )
 
 
-def run_prog(*seeds: int, episode_count: int):
+def run_prog(*seeds: int, episode_number: int):
     random.seed(seeds[0])
 
-    sim_system = SimSystem(
-        env=simpy.Environment(),
-        inter_arrival_time_distribution=lambda: random.expovariate(
-            lambd=float(config['job_arrival_lambda'])),  # 0.65 minute/job
-        family_index=lambda: random.choices(
-            [1, 2, 3],
-            weights=[
-                float(config['families']['f1']['weight']),
-                float(config['families']['f2']['weight']),
-                float(config['families']['f3']['weight'])
-            ]
-        )[0],
-        f1_processing_time_distribution=lambda: random.gammavariate(
-            alpha=float(config['families']['f1']['processing']['alpha']),
-            beta=float(config['families']['f1']['processing']['beta'])
-        ),
-        f2_processing_time_distribution=lambda: random.gammavariate(
-            alpha=float(config['families']['f2']['processing']['alpha']),
-            beta=float(config['families']['f2']['processing']['beta'])
-        ),
-        f3_processing_time_distribution=lambda: random.gammavariate(
-            alpha=float(config['families']['f3']['processing']['alpha']),
-            beta=eval(config['families']['f3']['processing']['beta'])
-        ),
-        routing=lambda: [random.random() for _ in range(6)],
-        dd=lambda: random.uniform(float(config['dd']['min']), float(config['dd']['max']))
-    )
-
+    sim_system = new_simpy_env()
     gym_env = GymSystem(sim_system)
     # gym_env = GymExpandedSystem(sim_system)
 
     model = None
-    if rl_params['model'] == 'A2C':
-        if rl_params['tensorflow_enabled']:
-            model = A2C("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
+    model_constructors = {
+        'A2C': A2C,
+        'DQN': DQN,
+        'PPO': PPO
+    }
+
+    model_constructor = model_constructors.get(model_type)
+
+    if model_constructor is not None:
+        if tensorflow_enabled:
+            model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value, tensorboard_log=log_dir + "/gym")
         else:
-            model = A2C("MultiInputPolicy", gym_env, verbose=1)
-        model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
-    elif rl_params['model'] == 'DQN':
-        if rl_params['tensorflow_enabled']:
-            model = DQN("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
-        else:
-            model = DQN("MultiInputPolicy", gym_env, verbose=1)
-        model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
-    elif rl_params['model'] == 'PPO':
-        if rl_params['tensorflow_enabled']:
-            model = PPO("MultiInputPolicy", gym_env, verbose=1, tensorboard_log=log_dir + "/gym")
-        else:
-            model = PPO("MultiInputPolicy", gym_env, verbose=1)
-        model.learn(total_timesteps=int(rl_params['learning_total_timesteps']))
+            model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value)
+    else:
+        print(f"Model type {model_type} not recognized.")
+    model.learn(total_timesteps=learning_total_time_steps)
 
     total_reward_over_episodes: list[float] = []
     actions_distribution = []
@@ -150,7 +117,7 @@ def run_prog(*seeds: int, episode_count: int):
     min_reward = float('inf')
     max_reward = float('-inf')
 
-    for e in range(episode_count):
+    for e in range(episode_number):
         gym_env.simpy_env_reset(new_simpy_env())
         obs, _ = gym_env.reset(seed=seeds[e])
         total_reward = 0
@@ -161,46 +128,48 @@ def run_prog(*seeds: int, episode_count: int):
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
-            if rl_params['tensorflow_enabled']:
+            if tensorflow_enabled:
                 log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
-            reward_over_episode.append(reward)
+            reward_over_episode.append(float(reward))
             total_reward += reward
 
             if done or truncated:
                 print(f"Episode terminated! Reward: {reward_over_episode}; i: {i}")
                 break
 
-            if 'wip' in next_state and max(next_state['wip']) > max_wip:
-                max_wip = max(next_state['wip'])
+            if tensorflow_enabled:
+                if 'wip' in next_state and max(next_state['wip']) > max_wip:
+                    max_wip = max(next_state['wip'])
 
-            if 'first_job_processing_times' in next_state and max(
-                    next_state['first_job_processing_times']) > max_first_job_processing_times:
-                max_first_job_processing_times = max(next_state['first_job_processing_times'])
+                if 'first_job_processing_times' in next_state and max(
+                        next_state['first_job_processing_times']) > max_first_job_processing_times:
+                    max_first_job_processing_times = max(next_state['first_job_processing_times'])
 
-            if 'slack' in next_state and next_state['slack'] > max_slack:
-                max_slack = next_state['slack']
-            if 'slack' in next_state and next_state['slack'] < min_slack:
-                min_slack = next_state['slack']
+                if 'slack' in next_state and next_state['slack'] > max_slack:
+                    max_slack = next_state['slack']
+                elif 'slack' in next_state and next_state['slack'] < min_slack:
+                    min_slack = next_state['slack']
 
-            if reward < min_reward:
-                min_reward = reward
-            if reward > max_reward:
-                max_reward = reward
+                if float(reward) < min_reward:
+                    min_reward = reward
+                elif float(reward) > max_reward:
+                    max_reward = reward
 
             obs = next_state
 
-            if rl_params['tensorflow_enabled']:
+            if tensorflow_enabled:
                 log_scalar(summary_writer, f"Reward in episode {seeds[e]}", reward, i)
 
         last_job_count.append(len(gym_env.simpy_env.jobs))
         last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
         actions_distribution.append(gym_env.action_stat)
+        total_reward_over_episodes.append(total_reward)
 
         utilization_rates.append([machine.utilization_rate for machine in
                                   gym_env.simpy_env.machines])
 
         sim_system_collection.append(gym_env.simpy_env)
-        if rl_params['tensorflow_enabled']:
+        if tensorflow_enabled:
             log_scalar(summary_writer, f"Job Count {seeds[e]}", len(gym_env.simpy_env.jobs), e)
             log_scalar(summary_writer, f"Finished Job Count {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
 
@@ -210,7 +179,7 @@ def run_prog(*seeds: int, episode_count: int):
             log_scalar(summary_writer, f"Correctly delivered {seeds[e]}", gym_env.simpy_env.correctly_finished_jobs, e)
             log_scalar(summary_writer, f"Tot delivered {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
 
-    if rl_params['tensorflow_enabled']:
+    if tensorflow_enabled:
         if not rl_params['normalize_state']:
             log_scalar(summary_writer, f"Max WIP", max_wip, 0)
             log_scalar(summary_writer, f"Max First Job Processing Times", max_first_job_processing_times, 0)
@@ -227,33 +196,37 @@ def run_prog(*seeds: int, episode_count: int):
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
 
-if rl_params['tensorflow_enabled']:
-    log_dir = f"./logs/test/{rl_params['model']}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+if tensorflow_enabled:
+    log_dir = f"./logs/test/{model_type}/{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
     summary_writer = tf.summary.create_file_writer(log_dir)
 
+# Welch's test
 welch_simulations_number = int(rl_params['episode_welch_count'])
-_, _, sim_system_collection = run_prog(*seeds[:welch_simulations_number], episode_count=welch_simulations_number)
-system_runs_arr = np.array([run.th_stats for run in sim_system_collection])
+_, _, sim_system_coll = run_prog(*seeds[:welch_simulations_number], episode_number=welch_simulations_number)
+system_runs_arr = np.array([run.th_stats for run in sim_system_coll])
 plt.plot(system_runs_arr.T)
 plt.show()
 
 welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
 welch.plot()
 
-seed_count = welch_simulations_number + int(rl_params['episode_count'])
-actions_distribution, total_reward_over_episodes, sim_system_collection = run_prog(*seeds[welch_simulations_number:seed_count],
-                                                                                   episode_count=int(rl_params['episode_count']))
+# Run the program
+episode_count = int(rl_params['episode_count'])
+seed_count = welch_simulations_number + episode_count
+actions_dist, total_rewards, sim_system_coll = (
+    run_prog(*seeds[welch_simulations_number:seed_count], episode_number=episode_count))
 
-title = ''
-if rl_params['model'] == 'A2C':
-    title = 'ActorCritic (A2C)'
-elif rl_params['model'] == 'DQN':
-    title = 'Deep Q-Learning (DQN)'
-elif rl_params['model'] == 'PPO':
-    title = 'Proximal Policy Optimization (PPO)'
-plt_reward_over_episodes(total_reward_over_episodes, title)
-output_analyze(sim_system_collection, welch.warmup_period)
-action_stat_print(actions_distribution, welch.warmup_period)
+# Plotting and analysis
+model_titles = {
+    'A2C': 'ActorCritic (A2C)',
+    'DQN': 'Deep Q-Learning (DQN)',
+    'PPO': 'Proximal Policy Optimization (PPO)'
+}
+title = model_titles.get(model_type, '')
+plt_reward_over_episodes(total_rewards, title)
+
+output_analyze(sim_system_coll, welch.warmup_period)
+action_stat_print(actions_dist, welch.warmup_period)
 
 
 # tensorboard --logdir=./reinforcement_learning/logs/test/

@@ -3,16 +3,16 @@ model: "DQN"  # A2C, DQN, PPO
 
 time_step_length: 0.65
 
-time_step_count: 6000  # 18250
+time_step_count: 11000  # 20 years
 
-episode_count: 2
-episode_welch_count: 2
+episode_count: 20
+episode_welch_count: 5
 
 episode_length: 9125  # 25 years
 
-learning_total_timesteps: 40000  # 36000
+learning_total_timesteps: 42000  # 75 years
 
-gamma: 0.99
+gamma: 0.10
 
 
 normalize_state: True
@@ -29,4 +29,4 @@ normalizing:
   max_reward: 250
 
 
-tensorflow_enabled: False
+tensorflow_flag: True
