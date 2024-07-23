@@ -49,6 +49,11 @@ class Machine(simpy.Resource):
 
     @property
     def queue_length(self) -> int:
+        """
+        Returns the current length of the queue.
+        :returns: The number of items in the queue.
+        """
+
         return len(self.queue)
 
     def _update_ut(self) -> None:
@@ -128,6 +133,13 @@ class Machine(simpy.Resource):
         return release
 
     def process_job(self, processing_time: float) -> Generator[simpy.Event, None, None]:
+        """
+        Simulates the processing of a job by the server.
+        Updates the instance variable 'worked_time' with the processing time.
+        :param processing_time: The time required to process the job in seconds.
+        :returns: A SimPy event representing the delay for the processing time.
+        """
+
         # Simulate the processing time
         yield self.env.timeout(processing_time)
 

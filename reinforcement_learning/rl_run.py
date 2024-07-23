@@ -37,15 +37,38 @@ gamma_value = float(rl_params['gamma'])
 
 
 def log_scalar(summ_writer, tag, value, step):
+    """
+    Logs a scalar value to TensorBoard using the provided summary writer.
+    This function writes a scalar value to TensorBoard, which can be visualized in the TensorBoard dashboard for
+    monitoring and analysis. It associates the scalar with a specific tag and step.
+    :param summ_writer: The TensorBoard summary writer instance used to log the scalar value.
+    :param tag: The tag or name for the scalar value, which will be used to identify it in TensorBoard.
+    :param value: The scalar value to be logged.
+    :param step: The global step value (or epoch) at which the scalar value is logged.
+    :returns: None
+    """
+
     with summ_writer.as_default():
         tf.summary.scalar(tag, value, step=step)
 
 
 def new_simpy_env() -> SimSystem:
+    """
+    Creates a new instance of the simulation system with the configuration parameters.
+    This function initializes and returns a new `SimSystem` object with the following settings:
+        - A new SimPy environment.
+        - Randomized inter-arrival time distribution for job arrivals.
+        - Random selection of job family indices based on configured weights.
+        - Processing time distributions for jobs in different families.
+        - Random routing values for jobs.
+        - Random due dates for jobs within a specified range.
+    :returns: A new instance of `SimSystem` configured with the given parameters.
+    """
+
     return SimSystem(
         env=simpy.Environment(),
         inter_arrival_time_distribution=lambda: random.expovariate(
-            lambd=float(config['job_arrival_lambda'])),  # 0.65 minute/job
+            lambd=float(config['job_arrival_lambda'])),
         family_index=lambda: random.choices(
             [1, 2, 3],
             weights=[
@@ -72,12 +95,29 @@ def new_simpy_env() -> SimSystem:
 
 
 def run_prog(*seeds: int, episode_number: int):
+    """
+    Runs a reinforcement learning training and evaluation loop for a given number of episodes.
+        - Initializes and trains a reinforcement learning model.
+        - Executes simulation episodes and collects performance metrics.
+        - Logs scalar values to TensorBoard if TensorFlow is enabled.
+        - Generates plots for utilization rates.
+    :param seeds: List of random seeds to ensure reproducibility across episodes.
+    :param episode_number: Number of episodes to run in the simulation.
+    :returns: A tuple containing:
+        - `actions_distribution`: A list of action distributions across episodes.
+        - `total_reward_over_episodes`: A list of total rewards accumulated per episode.
+        - `sim_system_collection`: A list of simulation systems used during the episodes.
+    """
+
+    # Seed the random number generator for reproducibility
     random.seed(seeds[0])
 
+    # Create a new simulation environment
     sim_system = new_simpy_env()
     gym_env = GymSystem(sim_system)
     # gym_env = GymExpandedSystem(sim_system)
 
+    # Initialize the model based on the specified type
     model = None
     model_constructors = {
         'A2C': A2C,
@@ -94,8 +134,11 @@ def run_prog(*seeds: int, episode_number: int):
             model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value)
     else:
         print(f"Model type {model_type} not recognized.")
+
+    # Train the model
     model.learn(total_timesteps=learning_total_time_steps)
 
+    # Initialize lists to collect data
     total_reward_over_episodes: list[float] = []
     actions_distribution = []
     sim_system_collection = []
@@ -121,19 +164,23 @@ def run_prog(*seeds: int, episode_number: int):
         reward_over_episode: list[float] = []
 
         for i in range(int(rl_params['time_step_count'])):
+            # Predict the action and take a step in the environment
             action, _states = model.predict(obs)
             next_state, reward, done, truncated, info = gym_env.step(action)
             gym_env.render("human")
 
+            # Log the reward if TensorFlow is enabled
             if tensorflow_enabled:
                 log_scalar(summary_writer, f"Reward {seeds[e]}", reward, e)
             reward_over_episode.append(float(reward))
             total_reward += reward
 
+            # Check for episode termination
             if done or truncated:
                 print(f"Episode terminated! Reward: {reward_over_episode}; i: {i}")
                 break
 
+            # Update normalization variables
             if tensorflow_enabled:
                 if 'wip' in next_state and max(next_state['wip']) > max_wip:
                     max_wip = max(next_state['wip'])
@@ -154,9 +201,11 @@ def run_prog(*seeds: int, episode_number: int):
 
             obs = next_state
 
+            # Log the reward for each time step if TensorFlow is enabled
             if tensorflow_enabled:
                 log_scalar(summary_writer, f"Reward in episode {seeds[e]}", reward, i)
 
+        # Collect data for analysis
         last_job_count.append(len(gym_env.simpy_env.jobs))
         last_finished_job_count.append(gym_env.simpy_env.finished_jobs)
         actions_distribution.append(gym_env.action_stat)
@@ -166,6 +215,8 @@ def run_prog(*seeds: int, episode_number: int):
                                   gym_env.simpy_env.machines])
 
         sim_system_collection.append(gym_env.simpy_env)
+
+        # Log additional metrics if TensorFlow is enabled
         if tensorflow_enabled:
             log_scalar(summary_writer, f"Job Count {seeds[e]}", len(gym_env.simpy_env.jobs), e)
             log_scalar(summary_writer, f"Finished Job Count {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
@@ -176,6 +227,7 @@ def run_prog(*seeds: int, episode_number: int):
             log_scalar(summary_writer, f"Correctly delivered {seeds[e]}", gym_env.simpy_env.correctly_finished_jobs, e)
             log_scalar(summary_writer, f"Tot delivered {seeds[e]}", gym_env.simpy_env.finished_jobs, e)
 
+    # Log normalization metrics if TensorFlow is enabled
     if tensorflow_enabled:
         if not rl_params['normalize_state']:
             log_scalar(summary_writer, f"Max WIP", max_wip, 0)
@@ -187,8 +239,10 @@ def run_prog(*seeds: int, episode_number: int):
             log_scalar(summary_writer, f"Min Reward", float(min_reward), 0)
             log_scalar(summary_writer, f"Max Reward", float(max_reward), 0)
 
+    # Close the Gym environment
     gym_env.close()
 
+    # Generate and return results
     utilization_plt(utilization_rates)
     return actions_distribution, total_reward_over_episodes, sim_system_collection
 
@@ -226,4 +280,5 @@ output_analyze(sim_system_coll, welch.warmup_period)
 action_stat_print(actions_dist, welch.warmup_period)
 
 
+# Command to start tensor board service and see from browser graphs:
 # tensorboard --logdir=./reinforcement_learning/logs/test/

@@ -12,11 +12,11 @@ episode_length: 9125  # 25 years
 
 learning_total_timesteps: 42000  # 75 years
 
-gamma: 0.55
+gamma: 0.99  # tested: 0.99 (best results), 0.5, 0.1
 
 
-normalize_state: True
-normalize_reward: True
+normalize_state: True  # just a bit better results than False
+normalize_reward: True  # just a bit better results than False
 
 normalizing:
   min_wip: 0
@@ -29,4 +29,4 @@ normalizing:
   max_reward: 250
 
 
-tensorflow_flag: False
+tensorflow_flag: False  # for find the maximums and minimums of the normalizations

@@ -1,20 +1,20 @@
 welch:
-  simulations_number: 5
+  simulations_number: 20
   until: 9125  # 25 years
-  window_size: 15
+  window_size: 15  # of moving average
   tol: 0.01
 
 analyze_throughput:
-  alpha: 0.05
+  alpha: 0.05  # t-student alpha
 
 analyze_wip:
-  alpha: 0.05
+  alpha: 0.05  # t-student alpha
 
 analyze_mts:
-  alpha: 0.05
+  alpha: 0.05  # t-student alpha
 
 analyze_mds:
-  alpha: 0.05
+  alpha: 0.05  # t-student alpha
 
 push_system:
   stat_simulations_number: 800

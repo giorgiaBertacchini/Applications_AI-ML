@@ -33,16 +33,36 @@ class Job:
         self.logger = Logger(self.env)
         self.name = f'Job {id(self)}'
 
-        #self.logger.log(f'{self} enters in system...')
+        # self.logger.log(f'{self} enters in system...')
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the object.
+        :returns: The name of the object with a reset ANSI escape code.
+        """
+
         return f"{self.name}\033[0m"
 
     @property
     def time_in_system(self) -> float:
+        """
+        Calculates the total time spent in the system.
+        This includes the sum of all delays and the processing times recorded in the real routing.
+        :returns: The total time spent in the system.
+        """
+
         return sum(self.delays) + sum(p for _, p in self.real_routing)
 
     def main(self) -> ProcessGenerator:
+        """
+        Manages the main process flow for the job through multiple machines.
+        This function coordinates the job requesting access to machines.
+        - Sets the `done` attribute to False at the start and True at the end.
+        - Records queue entry and exit times, and calculates delays.
+        - Updates the `delivery_time` with the current simulation time at the end.
+        :returns: A generator that yields SimPy events for each processing step.
+        """
+
         self.done = False
         for machine, processing_time in zip(self.machines, self.processing_times):
 

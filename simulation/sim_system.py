@@ -86,10 +86,22 @@ class SimSystem:
 
     @property
     def finished_jobs(self) -> int:
+        """
+        Calculates the number of jobs that have been completed.
+        :returns: The number of completed jobs.
+        """
+
         return sum(job.done for job in self.jobs)
 
     @property
     def correctly_finished_jobs(self) -> int:
+        """
+        Calculates the number of jobs that were completed within the acceptable delivery window.
+        A job is considered correctly finished if it is marked as done and its delivery time falls within a specified
+        window around its due date.
+        :returns: The count of correctly finished jobs.
+        """
+
         half_window = config['reward']['delivery_half_window']
         count = 0
         for job in self.jobs:
@@ -101,6 +113,13 @@ class SimSystem:
         return count
 
     def get_wip(self) -> List[float]:
+        """
+        Calculates the work-in-progress (WIP) for each machine up to the 6th machine.
+        The WIP for a machine is the sum of the processing times of jobs currently in the queue for that machine and
+        all previous machines.
+        :returns: A list of WIP values for the first 6 machines.
+        """
+
         wip = []
         for i in range(6):
             machine_wip = 0
@@ -113,6 +132,11 @@ class SimSystem:
         return wip
 
     def wip_sampler(self) -> Generator[simpy.Event, None, None]:
+        """
+        Periodically samples and records the work-in-progress (WIP) levels.
+        :returns: A generator that yields SimPy timeout events at each sampling interval.
+        """
+
         while True:
             yield self.env.timeout(float(config['wip_timestep']))
             wip = self.get_wip()
@@ -121,6 +145,11 @@ class SimSystem:
             self.wip_stats.append(tuple(wip))
 
     def throughput_sampler(self) -> Generator[simpy.Event, None, None]:
+        """
+        Periodically samples and records the throughput of finished jobs.
+        :returns: A generator that yields SimPy timeout events at each sampling interval.
+        """
+
         while True:
             yield self.env.timeout(float(config['throughput_timestep']))
             delta = self.finished_jobs - self.last_total_th
@@ -128,6 +157,11 @@ class SimSystem:
             self.last_total_th = self.finished_jobs
 
     def mean_time_in_system_sampler(self) -> Generator[simpy.Event, None, None]:
+        """
+        Periodically samples and records the mean time spent in the system for jobs.
+        :returns: A generator that yields SimPy timeout events at each sampling interval.
+        """
+
         while True:
             yield self.env.timeout(float(config['mean_time_in_system_timestep']))
 
@@ -136,6 +170,11 @@ class SimSystem:
             self.mts_stats.append(mean_mts)
 
     def mean_delay_in_system_sampler(self) -> Generator[simpy.Event, None, None]:
+        """
+        Periodically samples and records the mean delay experienced by jobs in the system.
+        :returns: A generator that yields SimPy timeout events at each sampling interval.
+        """
+
         while True:
             yield self.env.timeout(float(config['mean_delay_in_system_timestep']))
             total_delay = []
@@ -146,10 +185,20 @@ class SimSystem:
                 self.mds_stats.append(mean_mds)
             else:
                 self.mds_stats.append(0)
-            #mean_mds = statistics.mean(sum(job.delays) for job in self.jobs)
+            #mean_mds = statistics.mean(sum(job.delays) for job in self.jobs) TODO
             #self.mds_stats.append(mean_mds)
 
     def get_reward(self) -> float:
+        """
+        Calculates the reward based on job completion and work-in-progress (WIP) metrics.
+        The reward is computed by considering various factors:
+           - Delivery time of jobs: rewards for on-time delivery and penalizes for early or late deliveries.
+           - WIP levels: awards for reduced queue lengths and penalizes for increased queue lengths.
+           - Penalties for empty queues if jobs are still pending.
+           - Additional penalties if jobs are late, considering their processing times and WIP levels.
+        :returns: The calculated reward based on the current system state.
+        """
+
         delivery_half_window = config['reward']['delivery_half_window']
         daily_penalty = config['reward']['daily_penalty']
         award_delivery = config['reward']['award_delivery']
@@ -173,7 +222,6 @@ class SimSystem:
 
                 # Remove the job from the original list
                 self.reward_time_step_jobs.remove(job)
-
 
         actual_wip = self.get_wip()
         for i, machine in enumerate(self.machines):
@@ -205,12 +253,26 @@ class SimSystem:
         return reward
 
     def reward_sampler(self) -> Generator[simpy.Event, None, None]:
+        """
+        Periodically samples and records the reward based on the current system state.
+        :returns: A generator that yields SimPy timeout events at each sampling interval.
+        """
+
         while True:
             yield self.env.timeout(float(config['reward']['reward_time_step']))
 
             self.rewards_over_time.append(self.get_reward())
 
     def run(self) -> Generator[simpy.Event, None, None]:
+        """
+        Continuously generates and manages jobs based on inter-arrival times and family-specific routing.
+        This function performs the following tasks in a loop:
+        1. Determines the time until the next job arrival based on an inter-arrival time distribution.
+        2. Creates a new job with routing and processing times determined by the job's family group.
+        3. Updates statistics and manages the job in the system.
+        :returns: A generator that yields SimPy timeout events for each job arrival.
+        """
+
         while True:
             jobs_inter_arrival_time = self.inter_arrival_time_distribution()
             self.jobs_inter_arrival_times.append(jobs_inter_arrival_time)
@@ -254,5 +316,12 @@ class SimSystem:
             self.job_manager(job)
 
     def job_manager(self, job: Job) -> None:
+        """
+        Manages a newly created job by adding it to the job and pending job lists.
+        This function updates the internal lists that track active and pending jobs by appending the new job to both
+        `self.jobs` and `self.psp`.
+        :param job: The job to be managed.
+        """
+
         self.jobs.append(job)
         self.psp.append(job)

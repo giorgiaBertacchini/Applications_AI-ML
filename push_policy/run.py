@@ -22,12 +22,21 @@ with open('../conf/welch_params.yaml', 'r') as file:
 
 
 def run_push_system(seed: int | None, until: float = 60 * 120) -> PushSystem:
+    """
+    Runs a simulation of a PushSystem for a given duration and returns the resulting PushSystem instance.
+    :param seed: Optional seed for random number generation to ensure reproducibility.
+    :param until: Time until which the simulation should run (in minutes). Default is 2 hours.
+    :returns: An instance of PushSystem representing the state of the system after the simulation.
+    """
+
+    # Seed the random number generator for reproducibility
     random.seed(seed)
 
+    # Create a new PushSystem instance
     push_system = PushSystem(
         env=simpy.Environment(),
         inter_arrival_time_distribution=lambda: random.expovariate(
-            lambd=float(config['job_arrival_lambda'])),  # 0.65 minute/job
+            lambd=float(config['job_arrival_lambda'])),
         family_index=lambda: random.choices(
             [1, 2, 3],
             weights=[
@@ -51,11 +60,21 @@ def run_push_system(seed: int | None, until: float = 60 * 120) -> PushSystem:
         routing=lambda: [random.random() for _ in range(6)],
         dd=lambda: random.uniform(float(config['dd']['min']), float(config['dd']['max']))
     )
+
+    # Run the simulation until the specified time
     push_system.env.run(until=until)
+
     return push_system
 
 
 def main_push_system(*seeds: int, until) -> Sequence[PushSystem]:
+    """
+    Runs multiple simulations of a PushSystem with different random seeds and collects the results.
+    :param seeds: A variable number of random seeds to initialize the simulations.
+    :param until: The time until which the simulation should run.
+    :returns: A sequence of PushSystem instances representing the results of the simulations.
+    """
+
     max_wip = float('-inf')
     max_first_job_processing_times = float('-inf')
     system_collection = []
@@ -76,6 +95,12 @@ def main_push_system(*seeds: int, until) -> Sequence[PushSystem]:
 
 
 def run_and_statistics(*seeds: int) -> None:
+    """
+    Runs simulations to find the warmup period and analyzes the results using statistical methods.
+    :param seeds: Seeds for random number generation for reproducibility of simulations.
+    """
+
+    # Number of simulations for Welch test and for statistical analysis
     welch_simulations_number = int(welch_params['welch']['simulations_number'])
     stat_simulations_number = int(welch_params['push_system']['stat_simulations_number'])
 
@@ -84,16 +109,20 @@ def run_and_statistics(*seeds: int) -> None:
     system_runs = main_push_system(*seeds[:welch_simulations_number], until=welch_params['welch']['until'])
     system_runs_arr = np.array([run.th_stats for run in system_runs])
 
+    # Plot throughput statistics for the initial simulations
     plt.plot(system_runs_arr.T)
     plt.show()
 
+    # Perform Welch's test to find the warmup period
     welch = Welch(system_runs_arr, window_size=welch_params['welch']['window_size'], tol=welch_params['welch']['tol'])
     welch.plot()
 
+    # Run additional simulations to gather data for statistical analysis
     print(f"Running {stat_simulations_number} simulations...")
     system_runs = main_push_system(*seeds[welch_simulations_number:(stat_simulations_number + welch_simulations_number)],
                                    until=welch_params['push_system']['stat_simulation_until'])
 
+    # Analyze the results
     output_analyze(list(system_runs), welch.warmup_period)
 
 

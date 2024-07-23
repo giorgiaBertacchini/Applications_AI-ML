@@ -44,7 +44,18 @@ class GymSystem(gym.Env):
                 "slack": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),  # Float
             })
 
-    def normalize_state(self, wip, first_job_processing_times, slack):
+    @staticmethod
+    def normalize_state(wip, first_job_processing_times, slack):
+        """
+        Normalizes the state variables for work-in-progress (WIP), first job processing times, and slack.
+        This function scales the values of WIP, processing times of the first job, and slack to a normalized range
+        between 0 and 1 based on predefined minimum and maximum values.
+        :param wip: A list of work-in-progress values to be normalized.
+        :param first_job_processing_times: A list of processing times for the first job to be normalized.
+        :param slack: A list containing slack values to be normalized.
+        :returns: A tuple containing normalized values for WIP, first job processing times, and slack.
+        """
+
         wip_min = rl_config['normalizing']['min_wip']
         wip_max = rl_config['normalizing']['max_wip']
         min_processing_time = rl_config['normalizing']['min_processing_time']
@@ -67,13 +78,36 @@ class GymSystem(gym.Env):
 
         return normalized_wip, normalized_first_job_processing_times, normalized_slack
 
-    def normalize_reward(self, reward):
+    @staticmethod
+    def normalize_reward(reward: float) -> float:
+        """
+        Normalizes the reward value to a range between 0 and 1.
+        :param reward: The reward value to be normalized.
+        :returns: The normalized reward value.
+        """
+
         reward_min = rl_config['normalizing']['min_reward']
         reward_max = rl_config['normalizing']['max_reward']
 
         return (reward - reward_min) / (reward_max - reward_min)
 
     def step(self, action):
+        """
+        Executes a step in the simulation environment based on the given action and updates the state.
+        This function performs the following tasks:
+        1. Records the action taken.
+        2. If the action is to put a job into production (action == 1), it starts processing the first job in the queue.
+        3. Sorts the jobs in the queue by their due date.
+        4. Retrieves the current state observation.
+        :param action: The action to be executed (0 or 1) representing whether to put a job into production or not.
+        :returns: A tuple containing:
+            - `obs`: The current state observation after taking the action.
+            - `reward`: The normalized reward for the action taken.
+            - `done`: A boolean indicating if the episode has finished.
+            - `False`: A placeholder for additional information (not used in this implementation).
+            - `{}`: An empty dictionary for additional information (not used in this implementation).
+        """
+
         self.action_stat.append(int(action))
 
         # If I put the job into production
@@ -109,6 +143,15 @@ class GymSystem(gym.Env):
         return obs, self.reward, done, False, {}
 
     def reset(self, seed=None, options=None):
+        """
+        Resets the simulation environment to its initial state.
+        :param seed: Optional seed for random number generation to ensure reproducibility.
+        :param options: Additional options for resetting the environment (currently not used).
+        :returns: A tuple containing:
+            - `self.get_state()`: The initial state of the environment after the reset.
+            - `{}`: An empty dictionary for additional information (not used in this implementation).
+        """
+
         super().reset(seed=seed)
 
         random.seed(seed)
@@ -119,8 +162,14 @@ class GymSystem(gym.Env):
 
         return self.get_state(), {}
 
-    def render(self, mode='human'):
-        # View current status
+    def render(self, mode='human') -> None:
+        """
+        Displays the current status of the simulation environment.
+        :param mode: The mode in which to render the output. Currently, only 'human' mode is supported, which prints
+        the information to the console.
+        :returns: None
+        """
+
         if len(self.simpy_env.psp) > 0:
             first_element = self.simpy_env.psp[0]
 
@@ -139,7 +188,26 @@ class GymSystem(gym.Env):
             )
 
     def get_state(self):
+        """
+        Retrieves and returns the current state of the simulation environment.
+        This function collects the current work-in-progress (WIP), the processing times of the first job in the queue,
+        and the slack time (time remaining until the job's due date). It normalizes these values if normalization is
+        enabled in the configuration.
+        :returns: A dictionary containing the current state:
+            - `wip`: A NumPy array representing the normalized work-in-progress values.
+            - `first_job_processing_times`: A NumPy array representing the normalized processing times of the first job.
+            - `slack`: A NumPy array representing the normalized slack time.
+        """
+
         def get_raw_state():
+            """
+            Helper function to get the raw, unnormalized state of the environment.
+            :returns: A tuple containing:
+                - `wip`: The work-in-progress values.
+                - `first_job_processing_times`: The processing times of the first job.
+                - `slack`: The slack time (time remaining until the job's due date).
+            """
+
             if len(self.simpy_env.psp) > 0:
                 first_element = self.simpy_env.psp[0]
                 first_job_processing_times = first_element.processing_times
@@ -161,4 +229,10 @@ class GymSystem(gym.Env):
         }
 
     def simpy_env_reset(self, sim_system: SimSystem) -> None:
+        """
+        Resets the simulation environment by setting a new simulation system.
+        :param sim_system: The new simulation system to be assigned to `self.simpy_env`.
+        :returns: None
+        """
+
         self.simpy_env = sim_system
