@@ -1,18 +1,20 @@
 
 model: "PPO"  # A2C, DQN, PPO
 
-time_step_length: 0.65
+time_step_length: 0.65  # tested: 0.65 (best results), 1 (less throughput), 1.5 (= 1/0.65, very bad results)
 
-time_step_count: 11000  # 20 years
+time_step_count: 11000  # 20 years (with time_step_length 0.65), 30 years (with time_step_length 1), 45 years (with time_step_length 1.54)
 
 episode_count: 20
 episode_welch_count: 5
 
-episode_length: 9125  # 25 years
+episode_length: 9125  # 25 years (365 days * 25 years = 9125 days)
 
-learning_total_timesteps: 42000  # 75 years
+learning_total_timesteps: 28000  # 50 years (with time_step_length 0.65). 75 years (with time_step_length 1), 115 years (with time_step_length 1.54)
 
-gamma: 0.99  # tested: 0.99 (best results), 0.5, 0.1
+gamma: 0.99  # Discount factor. Tested: 0.99 (best results), 0.5, 0.1
+
+PPO_clip_param: 0.4  # tested: 0.2 (default), 0.3 (worst results than 0.2), 0.1 (better than 0.3)
 
 
 normalize_state: True  # just a bit better results than False

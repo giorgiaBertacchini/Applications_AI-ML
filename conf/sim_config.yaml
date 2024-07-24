@@ -1,4 +1,4 @@
-job_arrival_lambda: 0.65
+job_arrival_lambda: 0.65  # jobs/time_unit
 
 dd:  # due date
   min: 30
@@ -40,11 +40,10 @@ mean_delay_in_system_timestep: 30  # one month
 reward:
   reward_sampling: True
   reward_time_step: 1  # one day
-  delivery_half_window: 7  # delivery tolerance time window
+  delivery_half_window: 10  # delivery tolerance time window
   daily_penalty: 5  # daily penalty of delivery outside the tolerance window
-  award_delivery: 125  # in case of proper delivery
-  wip_penalty: 15  # if a queue grows, the reward is reduced
-  wip_award: 2  # if a queue gets shorter, the reward increases
+  award_delivery: 250  # in case of proper delivery
+  wip_penalty: 10  # if a queue grows, the reward is reduced
+  wip_award: 1  # if a queue gets shorter, the reward increases
   avoid_empty_queue_penalty: 125  # to prevent production from freezing
   job_late_penalty: 0  # additional penalty for job in psp late
-

@@ -34,6 +34,7 @@ tensorflow_enabled = rl_params['tensorflow_flag']
 model_type = rl_params['model']
 learning_total_time_steps = int(rl_params['learning_total_timesteps'])
 gamma_value = float(rl_params['gamma'])
+PPO_clip_param = float(rl_params['PPO_clip_param'])
 
 
 def log_scalar(summ_writer, tag, value, step):
@@ -127,7 +128,13 @@ def run_prog(*seeds: int, episode_number: int):
 
     model_constructor = model_constructors.get(model_type)
 
-    if model_constructor is not None:
+    if model_type == 'PPO':
+        if tensorflow_enabled:
+            model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value, tensorboard_log=log_dir + "/gym",
+                                      clip_range=PPO_clip_param)
+        else:
+            model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value, clip_range=PPO_clip_param)
+    elif model_constructor is not None:
         if tensorflow_enabled:
             model = model_constructor("MultiInputPolicy", gym_env, verbose=1, gamma=gamma_value, tensorboard_log=log_dir + "/gym")
         else:
